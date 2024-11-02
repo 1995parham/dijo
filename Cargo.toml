@@ -18,7 +18,7 @@ erased-serde = "0.4"
 typetag = "0.1.4"
 directories = "3.0.1"
 clap = "4.5"
-notify = "4.0"
+notify = "7.0"
 toml = "0.5.6"
 syn = "=2.0.87"
 
