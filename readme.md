@@ -16,8 +16,7 @@ much like a certain text editor.
   stats!
 - **vim like command mode**: add with `:add`, delete with
   `:delete` and above all, quit with `:q`!.
-- **fully scriptable**: [configure `dijo` to
-  track your `git` commits](https://github.com/NerdyPepper/dijo/wiki/Auto-Habits)!
+- **fully scriptable**
 
 ### Install
 
@@ -34,37 +33,6 @@ page for prebuilt binaries.
 $ rustup update
 
 $ cargo install dijo
-```
-
-If you aren't familiar with `cargo` or Rust, read the [complete
-installation](https://github.com/NerdyPepper/dijo/wiki/Install)
-guide.
-
-#### Nix
-
-`dijo` on nixpkgs (maintained by [@Infinisil](https://github.com/Infinisil)):
-
-```
-$ nix-env -f channel:nixpkgs-unstable -iA dijo
-```
-
-#### Snap
-
-`dijo` on sanpstore (maintained by [@purveshpatel511](https://github.com/purveshpatel511)):
-
-```
-$ sudo snap install dijo
-```
-
-#### Arch Linux
-
-Install [`dijo-bin`](https://aur.archlinux.org/packages/dijo-bin/) or [`dijo-git`](https://aur.archlinux.org/packages/dijo-git) from the AUR.
-
-#### Windows
-
-```
-# the default termion backend dosen't run on windows yet
-$ cargo install --no-default-features --features "crossterm-backend"
 ```
 
 ### Usage
