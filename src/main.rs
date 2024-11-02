@@ -11,7 +11,7 @@ use crate::app::App;
 use crate::command::{open_command_window, Command};
 use crate::utils::{load_configuration_file, AppConfig};
 
-use clap::{App as ClapApp, Arg};
+use clap::{Command as ClapApp, Arg};
 
 #[cfg(any(feature = "termion-backend", feature = "default"))]
 use cursive::termion;
@@ -32,23 +32,23 @@ fn main() {
         .author(env!("CARGO_PKG_AUTHORS"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
         .arg(
-            Arg::with_name("command")
-                .short("c")
+            Arg::new("command")
                 .long("command")
-                .takes_value(true)
+                .short('c')
                 .value_name("CMD")
                 .help("run a dijo command"),
         )
         .arg(
-            Arg::with_name("list")
-                .short("l")
+            Arg::new("list")
                 .long("list")
-                .takes_value(false)
+                .short('l')
+                .action(clap::ArgAction::SetTrue)
                 .help("list dijo habits")
                 .conflicts_with("command"),
         )
         .get_matches();
-    if let Some(c) = matches.value_of("command") {
+
+    if let Some(c) = matches.get_one::<String>("command") {
         let command = Command::from_string(c);
         match command {
             Ok(Command::TrackUp(_)) | Ok(Command::TrackDown(_)) => {
@@ -63,7 +63,7 @@ fn main() {
                 "Commands other than `track-up` and `track-down` are currently not supported!"
             ),
         }
-    } else if matches.is_present("list") {
+    } else if matches.get_flag("list") {
         for h in App::load_state().list_habits() {
             println!("{}", h);
         }
