@@ -79,7 +79,7 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/release/dijo
-          asset_name: dijo-x86_64-apple
+          asset_name: dijo-aarch64-apple
           tag: ${{ github.ref }}
           overwrite: true
 
