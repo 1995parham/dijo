@@ -1,18 +1,14 @@
 use std::f64;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::PathBuf;
 
 use cursive::direction::{Absolute, Direction};
 use cursive::event::{Event, EventResult, Key};
 use cursive::theme::Color;
 use cursive::view::{CannotFocus, View};
 use cursive::{Printer, Vec2};
-use notify::DebouncedEvent;
 
 use crate::app::{App, MessageKind};
-use crate::habit::{HabitWrapper, ViewMode};
-use crate::utils::{self, GRID_WIDTH, VIEW_HEIGHT, VIEW_WIDTH};
+use crate::habit::ViewMode;
+use crate::utils::{GRID_WIDTH, VIEW_HEIGHT, VIEW_WIDTH};
 
 impl View for App {
     fn draw(&self, printer: &Printer) {
@@ -58,23 +54,6 @@ impl View for App {
     }
 
     fn on_event(&mut self, e: Event) -> EventResult {
-        match self.file_event_recv.try_recv() {
-            Ok(DebouncedEvent::Write(_)) => {
-                let read_from_file = |file: PathBuf| -> Vec<Box<dyn HabitWrapper>> {
-                    if let Ok(ref mut f) = File::open(file) {
-                        let mut j = String::new();
-                        f.read_to_string(&mut j);
-                        return serde_json::from_str(&j).unwrap();
-                    } else {
-                        return Vec::new();
-                    }
-                };
-                let auto = read_from_file(utils::auto_habit_file());
-                self.habits.retain(|x| !x.is_auto());
-                self.habits.extend(auto);
-            }
-            _ => {}
-        };
         if self.habits.is_empty() {
             return EventResult::Ignored;
         }

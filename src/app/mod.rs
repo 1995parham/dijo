@@ -1,7 +1,4 @@
 use std::default::Default;
-use std::sync::mpsc::Receiver;
-
-use notify::{DebouncedEvent, RecommendedWatcher};
 
 use crate::habit::HabitWrapper;
 
@@ -15,11 +12,9 @@ pub use cursor::Cursor;
 pub use message::{Message, MessageKind};
 
 pub struct App {
-    // holds app data
+    // holds app data (habit_record.json)
     habits: Vec<Box<dyn HabitWrapper>>,
 
-    _file_watcher: RecommendedWatcher,
-    file_event_recv: Receiver<DebouncedEvent>,
     focus: usize,
     cursor: Cursor,
     message: Message,
