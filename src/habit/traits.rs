@@ -18,8 +18,6 @@ pub trait Habit {
     fn name(&self) -> String;
     fn reached_goal(&self, date: NaiveDate) -> bool;
     fn remaining(&self, date: NaiveDate) -> u32;
-    fn set_goal(&mut self, goal: Self::HabitType);
-    fn set_name(&mut self, name: impl AsRef<str>);
     fn kind(&self) -> GoalKind;
 
     fn inner_data_ref(&self) -> &InnerData;
