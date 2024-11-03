@@ -1,11 +1,11 @@
 [package]
 name = "dijo"
-version = "0.2.7"
-authors = ["Akshay <nerdy@peppe.rs>"]
-edition = "2018"
+version = "0.2.8"
+authors = ["Parham Alvani <parham.alvani@gmail.com>", "Akshay <nerdy@peppe.rs>"]
+edition = "2021"
 description = "Scriptable, curses-based, digital habit tracker"
-homepage = "https://github.com/nerdypepper/dijo"
-repository = "https://github.com/nerdypepper/dijo"
+homepage = "https://github.com/1995parham/dijo"
+repository = "https://github.com/1995parham/dijo"
 readme = './readme.md'
 keywords = ["tracker", "event-tracker", "tui", "journal"]
 categories = ["date-and-time", "command-line-interface"]
