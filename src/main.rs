@@ -11,7 +11,7 @@ use crate::app::App;
 use crate::command::{open_command_window, Command};
 use crate::utils::{load_configuration_file, AppConfig};
 
-use clap::{Command as ClapApp, Arg};
+use clap::{Arg, Command as ClapApp};
 
 #[cfg(any(feature = "termion-backend", feature = "default"))]
 use cursive::termion;
