@@ -18,11 +18,11 @@ pub fn pallete_gen() -> Palette {
 }
 
 pub fn theme_gen() -> Theme {
-    let mut t = Theme::default();
-    t.shadow = false;
-    t.borders = BorderStyle::None;
-    t.palette = pallete_gen();
-    t
+    Theme {
+        shadow: false,
+        borders: BorderStyle::None,
+        palette: pallete_gen(),
+    }
 }
 
 pub fn cursor_bg() -> Color {

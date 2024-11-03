@@ -7,8 +7,7 @@ pub enum TrackEvent {
     Decrement,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum ViewMode {
     #[default]
     Day,
@@ -16,7 +15,6 @@ pub enum ViewMode {
     Month,
     Year,
 }
-
 
 impl fmt::Display for ViewMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

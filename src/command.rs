@@ -36,9 +36,7 @@ fn get_habit_completion(prefix: &str, habit_names: &[String]) -> Option<String> 
 
 pub fn open_command_window(s: &mut Cursive) {
     let habit_list: Vec<String> = s
-        .call_on_name("Main", |view: &mut App| {
-            view.list_habits()
-        })
+        .call_on_name("Main", |view: &mut App| view.list_habits())
         .unwrap();
     let style = ColorStyle::new(Color::Dark(BaseColor::Black), Color::Dark(BaseColor::White));
     let command_window = OnEventView::new(

@@ -159,13 +159,15 @@ impl Habit for Float {
                     };
                 }
             }
-        } else if event == TrackEvent::Increment { self.insert_entry(
-            date,
-            FloatData {
-                value: 1,
-                precision: self.precision,
-            },
-        ) }
+        } else if event == TrackEvent::Increment {
+            self.insert_entry(
+                date,
+                FloatData {
+                    value: 1,
+                    precision: self.precision,
+                },
+            )
+        }
     }
     fn inner_data_ref(&self) -> &InnerData {
         &self.inner_data

@@ -132,12 +132,15 @@ impl App {
             format!("{} ({} day{} ago)", self.cursor.0, since, plural)
         };
 
-        StatusLine(format!(
+        StatusLine(
+            format!(
                 "Today: {} completed, {} remaining --{}--",
                 completed,
                 remaining,
                 self.get_mode()
-            ), timestamp)
+            ),
+            timestamp,
+        )
     }
 
     pub fn max_size(&self) -> Vec2 {

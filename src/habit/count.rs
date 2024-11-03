@@ -87,7 +87,9 @@ impl Habit for Count {
                     };
                 }
             }
-        } else if event == TrackEvent::Increment { self.insert_entry(date, 1) }
+        } else if event == TrackEvent::Increment {
+            self.insert_entry(date, 1)
+        }
     }
     fn inner_data_ref(&self) -> &InnerData {
         &self.inner_data
