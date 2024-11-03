@@ -64,14 +64,8 @@ impl Habit for Bit {
     fn name(&self) -> String {
         self.name.clone()
     }
-    fn set_name(&mut self, n: impl AsRef<str>) {
-        self.name = n.as_ref().to_owned();
-    }
     fn kind(&self) -> GoalKind {
         GoalKind::Bit
-    }
-    fn set_goal(&mut self, g: Self::HabitType) {
-        self.goal = g;
     }
     fn get_by_date(&self, date: NaiveDate) -> Option<&Self::HabitType> {
         self.stats.get(&date)
