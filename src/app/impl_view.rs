@@ -39,7 +39,7 @@ impl View for App {
     fn required_size(&mut self, _: Vec2) -> Vec2 {
         let width = GRID_WIDTH * (VIEW_WIDTH + 2);
         let height = {
-            if self.habits.len() > 0 {
+            if !self.habits.is_empty() {
                 (VIEW_HEIGHT as f64 * (self.habits.len() as f64 / GRID_WIDTH as f64).ceil())
                     as usize
             } else {
@@ -60,36 +60,36 @@ impl View for App {
         match e {
             Event::Key(Key::Right) | Event::Key(Key::Tab) | Event::Char('l') => {
                 self.set_focus(Absolute::Right);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Key(Key::Left) | Event::Shift(Key::Tab) | Event::Char('h') => {
                 self.set_focus(Absolute::Left);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Key(Key::Up) | Event::Char('k') => {
                 self.set_focus(Absolute::Up);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Key(Key::Down) | Event::Char('j') => {
                 self.set_focus(Absolute::Down);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
 
             Event::Char('K') => {
                 self.move_cursor(Absolute::Up);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Char('H') => {
                 self.move_cursor(Absolute::Left);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Char('J') => {
                 self.move_cursor(Absolute::Down);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Char('L') => {
                 self.move_cursor(Absolute::Right);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
 
             Event::Char('v') => {
@@ -101,20 +101,20 @@ impl View for App {
                 } else {
                     self.set_mode(ViewMode::Week)
                 }
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Char('V') => {
                 for habit in self.habits.iter_mut() {
                     habit.inner_data_mut_ref().set_view_mode(ViewMode::Week);
                 }
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Key(Key::Esc) => {
                 for habit in self.habits.iter_mut() {
                     habit.inner_data_mut_ref().set_view_mode(ViewMode::Day);
                 }
                 self.reset_cursor();
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
 
             /* We want sifting to be an app level function,
@@ -122,20 +122,20 @@ impl View for App {
              * */
             Event::Char(']') => {
                 self.sift_forward();
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Char('[') => {
                 self.sift_backward();
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Char('}') => {
                 self.reset_cursor();
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::CtrlChar('l') => {
                 self.message.clear();
                 self.message.set_kind(MessageKind::Info);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
 
             /* Every keybind that is not caught by App trickles

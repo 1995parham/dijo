@@ -3,7 +3,6 @@ use cursive::direction::Direction;
 use cursive::event::{Event, EventResult};
 use cursive::view::CannotFocus;
 use cursive::{Printer, Vec2};
-use typetag;
 
 use crate::command::GoalKind;
 use crate::habit::{Bit, Count, Float, InnerData, TrackEvent};

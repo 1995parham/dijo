@@ -80,7 +80,7 @@ fn main() {
             LinearLayout::vertical().child(NamedView::new("Main", app)),
         );
         s.add_layer(layout);
-        s.add_global_callback(':', |s| open_command_window(s));
+        s.add_global_callback(':', open_command_window);
 
         s.set_theme(theme::theme_gen());
         s.run();

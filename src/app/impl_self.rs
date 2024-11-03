@@ -16,12 +16,12 @@ use crate::app::{App, Cursor, Message, MessageKind, StatusLine};
 
 impl App {
     pub fn new() -> Self {
-        return App {
+        App {
             habits: vec![],
             focus: 0,
             cursor: Cursor::new(),
             message: Message::startup(),
-        };
+        }
     }
 
     pub fn add_habit(&mut self, h: Box<dyn HabitWrapper>) {
@@ -132,15 +132,12 @@ impl App {
             format!("{} ({} day{} ago)", self.cursor.0, since, plural)
         };
 
-        StatusLine {
-            0: format!(
+        StatusLine(format!(
                 "Today: {} completed, {} remaining --{}--",
                 completed,
                 remaining,
                 self.get_mode()
-            ),
-            1: timestamp,
-        }
+            ), timestamp)
     }
 
     pub fn max_size(&self) -> Vec2 {
@@ -162,19 +159,19 @@ impl App {
             if let Ok(ref mut f) = File::open(file) {
                 let mut j = String::new();
                 f.read_to_string(&mut j);
-                return serde_json::from_str(&j).unwrap();
+                serde_json::from_str(&j).unwrap()
             } else {
-                return Vec::new();
+                Vec::new()
             }
         };
 
         let mut regular = read_from_file(regular_f);
         let auto = read_from_file(auto_f);
         regular.extend(auto);
-        return App {
+        App {
             habits: regular,
             ..Default::default()
-        };
+        }
     }
 
     // this function does IO
@@ -213,7 +210,7 @@ impl App {
         match result {
             Ok(c) => match c {
                 Command::Add(name, goal, auto) => {
-                    if let Some(_) = self.habits.iter().find(|x| x.name() == name) {
+                    if self.habits.iter().any(|x| x.name() == name) {
                         self.message.set_kind(MessageKind::Error);
                         self.message
                             .set_message(format!("Habit `{}` already exist", &name));
@@ -228,7 +225,7 @@ impl App {
                         }
                         Some(GoalKind::Float(v, p)) => {
                             self.message.set_kind(MessageKind::Error);
-                            self.message.set_message(format!("Added floating habit"));
+                            self.message.set_message("Added floating habit");
                             self.add_habit(Box::new(Float::new(name, v, p, auto)));
                         }
                         _ => {

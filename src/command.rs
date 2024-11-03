@@ -10,7 +10,7 @@ use cursive::Cursive;
 use crate::app::App;
 use crate::utils::{GRID_WIDTH, VIEW_WIDTH};
 
-static COMMANDS: &'static [&'static str] = &[
+static COMMANDS: &[&str] = &[
     "add",
     "add-auto",
     "delete",
@@ -25,19 +25,19 @@ static COMMANDS: &'static [&'static str] = &[
 ];
 
 fn get_command_completion(prefix: &str) -> Option<String> {
-    let first_match = COMMANDS.iter().filter(|&x| x.starts_with(prefix)).next();
-    return first_match.map(|&x| x.into());
+    let first_match = COMMANDS.iter().find(|&x| x.starts_with(prefix));
+    first_match.map(|&x| x.into())
 }
 
 fn get_habit_completion(prefix: &str, habit_names: &[String]) -> Option<String> {
-    let first_match = habit_names.iter().filter(|&x| x.starts_with(prefix)).next();
-    return first_match.map(|x| x.into());
+    let first_match = habit_names.iter().find(|&x| x.starts_with(prefix));
+    first_match.map(|x| x.into())
 }
 
 pub fn open_command_window(s: &mut Cursive) {
     let habit_list: Vec<String> = s
         .call_on_name("Main", |view: &mut App| {
-            return view.list_habits();
+            view.list_habits()
         })
         .unwrap();
     let style = ColorStyle::new(Color::Dark(BaseColor::Black), Color::Dark(BaseColor::White));
@@ -52,12 +52,12 @@ pub fn open_command_window(s: &mut Cursive) {
         move |view: &mut EditView, _: &Event| {
             let contents = view.get_content();
             if !contents.contains(" ") {
-                let completion = get_command_completion(&*contents);
+                let completion = get_command_completion(&contents);
                 if let Some(c) = completion {
                     let cb = view.set_content(c);
                     return Some(EventResult::Consumed(Some(cb)));
                 };
-                return None;
+                None
             } else {
                 let word = contents.split(' ').last().unwrap();
                 let completion = get_habit_completion(word, &habit_list);
@@ -65,7 +65,7 @@ pub fn open_command_window(s: &mut Cursive) {
                     let cb = view.set_content(format!("{}", contents) + &c[word.len()..]);
                     return Some(EventResult::Consumed(Some(cb)));
                 };
-                return None;
+                None
             }
         },
     )
@@ -126,7 +126,7 @@ impl FromStr for GoalKind {
         } else if s.contains(".") {
             let value = s
                 .chars()
-                .filter(|x| x.is_digit(10))
+                .filter(|x| x.is_ascii_digit())
                 .collect::<String>()
                 .parse::<u32>()
                 .map_err(|_| CommandLineError::InvalidCommand(s.into()))?;
@@ -140,7 +140,7 @@ impl FromStr for GoalKind {
                 return Ok(GoalKind::Count(v));
             }
         }
-        return Err(CommandLineError::InvalidCommand(s.into()));
+        Err(CommandLineError::InvalidCommand(s.into()))
     }
 }
 
@@ -212,33 +212,33 @@ impl Command {
                 if args.is_empty() {
                     return Err(CommandLineError::NotEnoughArgs(first, 1));
                 }
-                return Ok(Command::Delete(args[0].to_string()));
+                Ok(Command::Delete(args[0].to_string()))
             }
             "track-up" | "tup" => {
                 if args.is_empty() {
                     return Err(CommandLineError::NotEnoughArgs(first, 1));
                 }
-                return Ok(Command::TrackUp(args[0].to_string()));
+                Ok(Command::TrackUp(args[0].to_string()))
             }
             "track-down" | "tdown" => {
                 if args.is_empty() {
                     return Err(CommandLineError::NotEnoughArgs(first, 1));
                 }
-                return Ok(Command::TrackDown(args[0].to_string()));
+                Ok(Command::TrackDown(args[0].to_string()))
             }
             "h" | "?" | "help" => {
                 if args.is_empty() {
                     return Ok(Command::Help(None));
                 }
-                return Ok(Command::Help(Some(args[0].to_string())));
+                Ok(Command::Help(Some(args[0].to_string())))
             }
-            "mprev" | "month-prev" => return Ok(Command::MonthPrev),
-            "mnext" | "month-next" => return Ok(Command::MonthNext),
-            "wq" | "writeandquit" => return Ok(Command::WriteAndQuit),
-            "q" | "quit" => return Ok(Command::Quit),
-            "w" | "write" => return Ok(Command::Write),
-            "" => return Ok(Command::Blank),
-            s => return Err(CommandLineError::InvalidCommand(s.into())),
+            "mprev" | "month-prev" => Ok(Command::MonthPrev),
+            "mnext" | "month-next" => Ok(Command::MonthNext),
+            "wq" | "writeandquit" => Ok(Command::WriteAndQuit),
+            "q" | "quit" => Ok(Command::Quit),
+            "w" | "write" => Ok(Command::Write),
+            "" => Ok(Command::Blank),
+            s => Err(CommandLineError::InvalidCommand(s.into())),
         }
     }
 }

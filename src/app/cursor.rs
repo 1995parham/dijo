@@ -12,9 +12,7 @@ impl std::default::Default for Cursor {
 
 impl Cursor {
     pub fn new() -> Self {
-        Cursor {
-            0: Local::now().naive_local().date(),
-        }
+        Cursor(Local::now().naive_local().date())
     }
     pub fn small_seek(&mut self, d: Absolute) {
         let today = Local::now().naive_local().date();

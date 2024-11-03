@@ -62,7 +62,7 @@ impl Bit {
 impl Habit for Bit {
     type HabitType = CustomBool;
     fn name(&self) -> String {
-        return self.name.clone();
+        self.name.clone()
     }
     fn set_name(&mut self, n: impl AsRef<str>) {
         self.name = n.as_ref().to_owned();
@@ -85,21 +85,21 @@ impl Habit for Bit {
                 return true;
             }
         }
-        return false;
+        false
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
         if let Some(val) = self.stats.get(&date) {
             if val.0 {
-                return 0;
+                0
             } else {
-                return 1;
+                1
             }
         } else {
-            return 1;
+            1
         }
     }
     fn goal(&self) -> u32 {
-        return 1;
+        1
     }
     fn modify(&mut self, date: NaiveDate, event: TrackEvent) {
         if let Some(val) = self.stats.get_mut(&date) {
@@ -113,10 +113,8 @@ impl Habit for Bit {
                     }
                 }
             }
-        } else {
-            if event == TrackEvent::Increment {
-                self.insert_entry(date, CustomBool(true));
-            }
+        } else if event == TrackEvent::Increment {
+            self.insert_entry(date, CustomBool(true));
         }
     }
     fn inner_data_ref(&self) -> &InnerData {

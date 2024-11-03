@@ -14,7 +14,7 @@ pub fn pallete_gen() -> Palette {
     p[Highlight] = TerminalDefault;
     p[HighlightInactive] = TerminalDefault;
 
-    return p;
+    p
 }
 
 pub fn theme_gen() -> Theme {
@@ -22,7 +22,7 @@ pub fn theme_gen() -> Theme {
     t.shadow = false;
     t.borders = BorderStyle::None;
     t.palette = pallete_gen();
-    return t;
+    t
 }
 
 pub fn cursor_bg() -> Color {

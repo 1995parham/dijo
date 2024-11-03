@@ -110,7 +110,7 @@ impl Habit for Float {
     type HabitType = FloatData;
 
     fn name(&self) -> String {
-        return self.name.clone();
+        self.name.clone()
     }
     fn set_name(&mut self, n: impl AsRef<str>) {
         self.name = n.as_ref().to_owned();
@@ -133,21 +133,19 @@ impl Habit for Float {
                 return true;
             }
         }
-        return false;
+        false
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
         if self.reached_goal(date) {
-            return 0;
+            0
+        } else if let Some(&val) = self.stats.get(&date) {
+            (self.goal - val).value
         } else {
-            if let Some(&val) = self.stats.get(&date) {
-                return (self.goal - val).value;
-            } else {
-                return self.goal.value;
-            }
+            self.goal.value
         }
     }
     fn goal(&self) -> u32 {
-        return self.goal.value;
+        self.goal.value
     }
     fn modify(&mut self, date: NaiveDate, event: TrackEvent) {
         if let Some(val) = self.stats.get_mut(&date) {
@@ -161,18 +159,13 @@ impl Habit for Float {
                     };
                 }
             }
-        } else {
-            match event {
-                TrackEvent::Increment => self.insert_entry(
-                    date,
-                    FloatData {
-                        value: 1,
-                        precision: self.precision,
-                    },
-                ),
-                _ => {}
-            };
-        }
+        } else if event == TrackEvent::Increment { self.insert_entry(
+            date,
+            FloatData {
+                value: 1,
+                precision: self.precision,
+            },
+        ) }
     }
     fn inner_data_ref(&self) -> &InnerData {
         &self.inner_data

@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::default;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
@@ -9,18 +8,15 @@ pub enum TrackEvent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum ViewMode {
+    #[default]
     Day,
     Week,
     Month,
     Year,
 }
 
-impl default::Default for ViewMode {
-    fn default() -> Self {
-        ViewMode::Day
-    }
-}
 
 impl fmt::Display for ViewMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

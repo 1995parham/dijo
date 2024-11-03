@@ -2,7 +2,6 @@ use cursive::theme::{BaseColor, Color};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
-use std;
 use std::default::Default;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
@@ -66,7 +65,7 @@ impl Default for Colors {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct AppConfig {
     #[serde(default)]
     pub look: Characters,
@@ -75,25 +74,16 @@ pub struct AppConfig {
     pub colors: Colors,
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        AppConfig {
-            look: Default::default(),
-            colors: Default::default(),
-        }
-    }
-}
-
 impl AppConfig {
     // TODO: implement string parsing from config.json
     pub fn reached_color(&self) -> Color {
-        return Color::parse(&self.colors.reached).unwrap_or(Color::Dark(BaseColor::Cyan));
+        Color::parse(&self.colors.reached).unwrap_or(Color::Dark(BaseColor::Cyan))
     }
     pub fn todo_color(&self) -> Color {
-        return Color::parse(&self.colors.todo).unwrap_or(Color::Dark(BaseColor::Magenta));
+        Color::parse(&self.colors.todo).unwrap_or(Color::Dark(BaseColor::Magenta))
     }
     pub fn inactive_color(&self) -> Color {
-        return Color::parse(&self.colors.inactive).unwrap_or(Color::Light(BaseColor::Black));
+        Color::parse(&self.colors.inactive).unwrap_or(Color::Light(BaseColor::Black))
     }
 }
 
@@ -102,15 +92,20 @@ pub fn load_configuration_file() -> AppConfig {
     if let Ok(ref mut f) = File::open(&cf) {
         let mut j = String::new();
         f.read_to_string(&mut j);
-        return toml::from_str(&j).unwrap_or_else(|e| panic!("Invalid config file: `{}`", e));
+        toml::from_str(&j).unwrap_or_else(|e| panic!("Invalid config file: `{}`", e))
     } else {
         if let Ok(dc) = toml::to_string(&AppConfig::default()) {
-            match OpenOptions::new().create(true).write(true).open(&cf) {
+            match OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .open(&cf)
+            {
                 Ok(ref mut file) => file.write(dc.as_bytes()).unwrap(),
                 Err(_) => panic!("Unable to write config file to disk!"),
             };
         }
-        return Default::default();
+        Default::default()
     }
 }
 
@@ -124,7 +119,7 @@ pub fn config_file() -> PathBuf {
     let mut data_file = PathBuf::from(proj_dirs.config_dir());
     fs::create_dir_all(&data_file);
     data_file.push("config.toml");
-    return data_file;
+    data_file
 }
 
 pub fn habit_file() -> PathBuf {
@@ -132,7 +127,7 @@ pub fn habit_file() -> PathBuf {
     let mut data_file = PathBuf::from(proj_dirs.data_dir());
     fs::create_dir_all(&data_file);
     data_file.push("habit_record.json");
-    return data_file;
+    data_file
 }
 
 pub fn auto_habit_file() -> PathBuf {
@@ -140,5 +135,5 @@ pub fn auto_habit_file() -> PathBuf {
     let mut data_file = PathBuf::from(proj_dirs.data_dir());
     fs::create_dir_all(&data_file);
     data_file.push("habit_record[auto].json");
-    return data_file;
+    data_file
 }

@@ -38,7 +38,7 @@ impl Habit for Count {
     type HabitType = u32;
 
     fn name(&self) -> String {
-        return self.name.clone();
+        self.name.clone()
     }
     fn set_name(&mut self, n: impl AsRef<str>) {
         self.name = n.as_ref().to_owned();
@@ -61,21 +61,19 @@ impl Habit for Count {
                 return true;
             }
         }
-        return false;
+        false
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
         if self.reached_goal(date) {
-            return 0;
+            0
+        } else if let Some(val) = self.stats.get(&date) {
+            self.goal - val
         } else {
-            if let Some(val) = self.stats.get(&date) {
-                return self.goal - val;
-            } else {
-                return self.goal;
-            }
+            self.goal
         }
     }
     fn goal(&self) -> u32 {
-        return self.goal;
+        self.goal
     }
     fn modify(&mut self, date: NaiveDate, event: TrackEvent) {
         if let Some(val) = self.stats.get_mut(&date) {
@@ -89,12 +87,7 @@ impl Habit for Count {
                     };
                 }
             }
-        } else {
-            match event {
-                TrackEvent::Increment => self.insert_entry(date, 1),
-                _ => {}
-            };
-        }
+        } else if event == TrackEvent::Increment { self.insert_entry(date, 1) }
     }
     fn inner_data_ref(&self) -> &InnerData {
         &self.inner_data

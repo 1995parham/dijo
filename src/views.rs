@@ -70,8 +70,7 @@ where
 
         let draw_week = |printer: &Printer| {
             let days = (1..31)
-                .map(|i| NaiveDate::from_ymd_opt(year, month, i))
-                .flatten() // dates 28-31 may not exist, ignore them if they don't
+                .filter_map(|i| NaiveDate::from_ymd_opt(year, month, i)) // dates 28-31 may not exist, ignore them if they don't
                 .collect::<Vec<_>>();
             for (week, line_nr) in days.chunks(7).zip(2..) {
                 let weekly_goal = self.goal() * week.len() as u32;
@@ -163,13 +162,13 @@ where
         match e {
             Event::Key(Key::Enter) | Event::Char('n') => {
                 self.modify(now, TrackEvent::Increment);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
             Event::Key(Key::Backspace) | Event::Char('p') => {
                 self.modify(now, TrackEvent::Decrement);
-                return EventResult::Consumed(None);
+                EventResult::Consumed(None)
             }
-            _ => return EventResult::Ignored,
+            _ => EventResult::Ignored,
         }
     }
 }
