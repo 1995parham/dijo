@@ -27,7 +27,7 @@ pub trait Habit {
 }
 
 #[typetag::serde(tag = "type")]
-pub trait HabitWrapper: erased_serde::Serialize {
+pub trait HabitWrapper: erased_serde::Serialize + Sync + Send {
     fn draw(&self, printer: &Printer);
     fn goal(&self) -> u32;
     fn kind(&self) -> GoalKind;
