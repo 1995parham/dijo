@@ -24,13 +24,13 @@ pub struct Count {
 
 impl Count {
     pub fn new(name: impl AsRef<str>, goal: u32, auto: bool) -> Self {
-        return Count {
+        Count {
             name: name.as_ref().to_owned(),
             stats: HashMap::new(),
             goal,
             auto,
             inner_data: Default::default(),
-        };
+        }
     }
 }
 

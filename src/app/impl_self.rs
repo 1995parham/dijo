@@ -45,7 +45,8 @@ impl App {
         if self.habits.is_empty() {
             return ViewMode::Day;
         }
-        return self.habits[self.focus].inner_data_ref().view_mode();
+
+        self.habits[self.focus].inner_data_ref().view_mode()
     }
 
     pub fn set_mode(&mut self, mode: ViewMode) {

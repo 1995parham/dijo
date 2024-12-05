@@ -22,10 +22,10 @@ where
     T: AsRef<str>,
 {
     fn from(item: T) -> Self {
-        return Message {
+        Message {
             msg: item.as_ref().to_string(),
             kind: MessageKind::Info,
-        };
+        }
     }
 }
 

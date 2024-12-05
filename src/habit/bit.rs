@@ -49,13 +49,13 @@ pub struct Bit {
 
 impl Bit {
     pub fn new(name: impl AsRef<str>, auto: bool) -> Self {
-        return Bit {
+        Bit {
             name: name.as_ref().to_owned(),
             stats: HashMap::new(),
             goal: CustomBool(true),
             auto,
             inner_data: Default::default(),
-        };
+        }
     }
 }
 

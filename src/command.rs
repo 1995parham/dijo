@@ -196,11 +196,11 @@ impl Command {
                 return Err(CommandLineError::NotEnoughArgs(first, 1));
             }
             let goal = args.get(1).map(|x| GoalKind::from_str(x)).transpose()?;
-            return Ok(Command::Add(
+            Ok(Command::Add(
                 args.get_mut(0).unwrap().to_string(),
                 goal,
                 auto,
-            ));
+            ))
         };
 
         match first.as_ref() {

@@ -92,7 +92,7 @@ pub struct Float {
 
 impl Float {
     pub fn new(name: impl AsRef<str>, goal: u32, precision: u8, auto: bool) -> Self {
-        return Float {
+        Float {
             name: name.as_ref().to_owned(),
             stats: HashMap::new(),
             goal: FloatData {
@@ -102,7 +102,7 @@ impl Float {
             precision,
             auto,
             inner_data: Default::default(),
-        };
+        }
     }
 }
 
