@@ -19,7 +19,7 @@ typetag = "0.2.18"
 directories = "6.0.0"
 clap = "4.5"
 toml = "0.8.19"
-syn = "=2.0.96"
+syn = "=2.0.98"
 
 [dependencies.cursive]
 version = "0.21"
