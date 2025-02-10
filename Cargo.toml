@@ -18,7 +18,7 @@ erased-serde = "0.4"
 typetag = "0.2.18"
 directories = "6.0.0"
 clap = "4.5"
-toml = "0.8.19"
+toml = "0.8.20"
 syn = "=2.0.98"
 
 [dependencies.cursive]
