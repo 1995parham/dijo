@@ -11,14 +11,6 @@ jobs:
       - name: checkout sources
         uses: actions/checkout@v4
 
-      - name: install stable toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-
       - name: run cargo fmt
         run: |
           cargo fmt --all -- --check
@@ -27,9 +19,5 @@ jobs:
         run: |
           cargo clippy -- -D warnings
 
-      - run: |
-          if [ -f docker-compose.yml ]; then
-            docker compose up -d
-          fi
       - run: |
           cargo test

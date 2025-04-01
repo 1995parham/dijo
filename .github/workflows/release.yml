@@ -3,7 +3,7 @@ name: release
 on:
   push:
     tags:
-      - '*'
+      - "*"
 
 jobs:
   rustfmt:
@@ -19,6 +19,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       # cache the build assets so they dont recompile every time.
       - name: Cache Rust dependencies
         uses: actions/cache@v4.2.3
@@ -27,17 +28,15 @@ jobs:
           key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.OS }}-build-
-      - name: Install latest rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: beta
+
       - name: Install system dependencies
         run: |
           sudo apt-get update \
           && sudo apt-get install -y \
           libdbus-1-dev libncurses5-dev libncursesw5-dev
+
       - name: Build
-        run: cargo build  --release && strip target/release/dijo
+        run: cargo build --release && strip target/release/dijo
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@2.9.0
@@ -61,11 +60,6 @@ jobs:
           key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.OS }}-build-
-      - name: Install latest rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: beta
-          target: aarch64-apple-darwin
 
       - name: Build for mac
         run: cargo build --release && strip target/release/dijo
@@ -92,11 +86,6 @@ jobs:
           key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.OS }}-build-
-      - name: Install latest rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: beta
-          target: x86_64-pc-windows-msvc
 
       - name: Build for windows
         shell: bash
