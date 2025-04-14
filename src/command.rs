@@ -57,7 +57,7 @@ pub fn open_command_window(s: &mut Cursive) {
                 };
                 None
             } else {
-                let word = contents.split(' ').last().unwrap();
+                let word = contents.split(' ').next_back().unwrap();
                 let completion = get_habit_completion(word, &habit_list);
                 if let Some(c) = completion {
                     let cb = view.set_content(format!("{}", contents) + &c[word.len()..]);
