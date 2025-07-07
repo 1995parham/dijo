@@ -60,7 +60,7 @@ pub fn open_command_window(s: &mut Cursive) {
                 let word = contents.split(' ').next_back().unwrap();
                 let completion = get_habit_completion(word, &habit_list);
                 if let Some(c) = completion {
-                    let cb = view.set_content(format!("{}", contents) + &c[word.len()..]);
+                    let cb = view.set_content(format!("{contents}") + &c[word.len()..]);
                     return Some(EventResult::Consumed(Some(cb)));
                 };
                 None
@@ -170,12 +170,12 @@ impl std::error::Error for CommandLineError {}
 impl fmt::Display for CommandLineError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CommandLineError::InvalidCommand(s) => write!(f, "Invalid command: `{}`", s),
-            CommandLineError::InvalidArg(p) => write!(f, "Invalid argument at position {}", p),
+            CommandLineError::InvalidCommand(s) => write!(f, "Invalid command: `{s}`"),
+            CommandLineError::InvalidArg(p) => write!(f, "Invalid argument at position {p}"),
             CommandLineError::NotEnoughArgs(s, n) => {
-                write!(f, "Command `{}` requires atleast {} argument(s)!", s, n)
+                write!(f, "Command `{s}` requires atleast {n} argument(s)!")
             }
-            CommandLineError::InvalidGoal(s) => write!(f, "Invalid goal expression: `{}`", s),
+            CommandLineError::InvalidGoal(s) => write!(f, "Invalid goal expression: `{s}`"),
         }
     }
 }

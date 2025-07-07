@@ -101,7 +101,7 @@ where
                         future_style
                     },
                     |p| {
-                        p.print((0, line_nr), &format!("{:2.0}% ", percentage));
+                        p.print((0, line_nr), &format!("{percentage:2.0}% "));
                     },
                 );
             }
@@ -128,7 +128,7 @@ where
                 let coords: Vec2 = ((i % 7) * 3, i / 7 + 2).into();
                 if let Some(c) = self.get_by_date(d) {
                     printer.with_style(day_style, |p| {
-                        p.print(coords, &format!("{:^3}", c));
+                        p.print(coords, &format!("{c:^3}"));
                     });
                 } else {
                     printer.with_style(fs, |p| {

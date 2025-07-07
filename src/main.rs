@@ -57,7 +57,7 @@ fn main() {
                 app.save_state();
             }
             Err(e) => {
-                eprintln!("{}", e);
+                eprintln!("{e}");
             }
             _ => eprintln!(
                 "Commands other than `track-up` and `track-down` are currently not supported!"
@@ -65,7 +65,7 @@ fn main() {
         }
     } else if matches.get_flag("list") {
         for h in App::load_state().list_habits() {
-            println!("{}", h);
+            println!("{h}");
         }
     } else {
         #[cfg(any(feature = "termion-backend", feature = "default"))]

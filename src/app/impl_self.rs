@@ -37,7 +37,7 @@ impl App {
         self.habits.retain(|h| h.name() != name);
         if old_len == self.habits.len() {
             self.message
-                .set_message(format!("Could not delete habit `{}`", name))
+                .set_message(format!("Could not delete habit `{name}`"))
         }
     }
 

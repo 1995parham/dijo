@@ -46,13 +46,13 @@ impl fmt::Display for FloatData {
         let characteristic = self.value / (10 * self.precision as u32);
         let mantissa = self.value % (10 * self.precision as u32);
         let s = if characteristic == 0 {
-            format!(".{}", mantissa)
+            format!(".{mantissa}")
         } else if mantissa == 0 {
-            format!("{}", characteristic)
+            format!("{characteristic}")
         } else {
-            format!("{}.{}", characteristic, mantissa)
+            format!("{characteristic}.{mantissa}")
         };
-        write!(f, "{:^3}", s)
+        write!(f, "{s:^3}")
     }
 }
 

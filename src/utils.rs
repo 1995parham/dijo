@@ -92,7 +92,7 @@ pub fn load_configuration_file() -> AppConfig {
     if let Ok(ref mut f) = File::open(&cf) {
         let mut j = String::new();
         f.read_to_string(&mut j);
-        toml::from_str(&j).unwrap_or_else(|e| panic!("Invalid config file: `{}`", e))
+        toml::from_str(&j).unwrap_or_else(|e| panic!("Invalid config file: `{e}`"))
     } else {
         if let Ok(dc) = toml::to_string(&AppConfig::default()) {
             match OpenOptions::new()
