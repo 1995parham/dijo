@@ -22,7 +22,7 @@ jobs:
 
       # cache the build assets so they dont recompile every time.
       - name: Cache Rust dependencies
-        uses: actions/cache@v4.2.3
+        uses: actions/cache@v4.2.4
         with:
           path: target
           key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
@@ -54,7 +54,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Cache Rust dependencies
-        uses: actions/cache@v4.2.3
+        uses: actions/cache@v4.2.4
         with:
           path: target
           key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
@@ -80,7 +80,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Cache Rust dependencies
-        uses: actions/cache@v4.2.3
+        uses: actions/cache@v4.2.4
         with:
           path: target
           key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
