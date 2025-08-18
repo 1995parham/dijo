@@ -9,7 +9,7 @@ jobs:
   rustfmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: rustup component add rustfmt
       - run: cargo fmt -- --check
 
@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # cache the build assets so they dont recompile every time.
       - name: Cache Rust dependencies
@@ -52,7 +52,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Cache Rust dependencies
         uses: actions/cache@v4.2.4
         with:
