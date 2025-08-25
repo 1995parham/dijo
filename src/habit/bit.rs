@@ -4,11 +4,11 @@ use std::default::Default;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+use crate::CONFIGURATION;
 use crate::command::GoalKind;
 use crate::habit::prelude::default_auto;
 use crate::habit::traits::Habit;
 use crate::habit::{InnerData, TrackEvent};
-use crate::CONFIGURATION;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct CustomBool(bool);
@@ -75,18 +75,15 @@ impl Habit for Bit {
     }
     fn reached_goal(&self, date: NaiveDate) -> bool {
         if let Some(val) = self.stats.get(&date)
-            && val.0 >= self.goal.0 {
-                return true;
-            }
+            && val.0 >= self.goal.0
+        {
+            return true;
+        }
         false
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
         if let Some(val) = self.stats.get(&date) {
-            if val.0 {
-                0
-            } else {
-                1
-            }
+            if val.0 { 0 } else { 1 }
         } else {
             1
         }

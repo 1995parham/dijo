@@ -5,8 +5,8 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 
 use chrono::{Local, NaiveDate};
-use cursive::direction::Absolute;
 use cursive::Vec2;
+use cursive::direction::Absolute;
 
 use crate::command::{Command, CommandLineError, GoalKind};
 use crate::habit::{Bit, Count, Float, HabitWrapper, TrackEvent, ViewMode};

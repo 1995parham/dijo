@@ -1,11 +1,11 @@
 use std::fmt;
 use std::str::FromStr;
 
+use cursive::Cursive;
 use cursive::event::{Event, EventResult, Key};
 use cursive::theme::{BaseColor, Color, ColorStyle};
 use cursive::view::Resizable;
 use cursive::views::{EditView, LinearLayout, OnEventView, TextView};
-use cursive::Cursive;
 
 use crate::app::App;
 use crate::utils::{GRID_WIDTH, VIEW_WIDTH};

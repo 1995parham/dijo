@@ -51,9 +51,10 @@ impl Habit for Count {
     }
     fn reached_goal(&self, date: NaiveDate) -> bool {
         if let Some(val) = self.stats.get(&date)
-            && val >= &self.goal {
-                return true;
-            }
+            && val >= &self.goal
+        {
+            return true;
+        }
         false
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
