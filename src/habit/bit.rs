@@ -74,11 +74,10 @@ impl Habit for Bit {
         *self.stats.entry(date).or_insert(val) = val;
     }
     fn reached_goal(&self, date: NaiveDate) -> bool {
-        if let Some(val) = self.stats.get(&date) {
-            if val.0 >= self.goal.0 {
+        if let Some(val) = self.stats.get(&date)
+            && val.0 >= self.goal.0 {
                 return true;
             }
-        }
         false
     }
     fn remaining(&self, date: NaiveDate) -> u32 {

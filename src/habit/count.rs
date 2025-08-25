@@ -50,11 +50,10 @@ impl Habit for Count {
         *self.stats.entry(date).or_insert(val) = val;
     }
     fn reached_goal(&self, date: NaiveDate) -> bool {
-        if let Some(val) = self.stats.get(&date) {
-            if val >= &self.goal {
+        if let Some(val) = self.stats.get(&date)
+            && val >= &self.goal {
                 return true;
             }
-        }
         false
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
