@@ -12,7 +12,6 @@ categories = ["date-and-time", "command-line-interface"]
 license = "MIT"
 
 [dependencies]
-serde_json = "1.0"
 lazy_static = "1.4.0"
 erased-serde = "0.4"
 typetag = "0.2.20"
@@ -30,8 +29,12 @@ version = "0.4"
 features = ["serde"]
 
 [dependencies.serde]
-version = "1.0.218"
+version = "1.0"
 features = ["derive"]
+
+[dependencies.serde_json]
+version = "1.0"
+features = ["preserve_order"]
 
 [features]
 default = ["termion-backend"]

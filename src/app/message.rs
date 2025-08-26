@@ -36,7 +36,7 @@ pub struct Message {
 
 impl Message {
     pub fn startup() -> Self {
-        "Type :add <habit-name> <goal> to get started, Ctrl-L to dismiss".into()
+        "Welcome to your habit tracker".into()
     }
     pub fn contents(&self) -> &str {
         &self.msg

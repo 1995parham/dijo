@@ -185,7 +185,9 @@ impl App {
         let (regular_f, auto_f) = (utils::habit_file(), utils::auto_habit_file());
 
         let write_to_file = |data: Vec<&Box<dyn HabitWrapper>>, file: PathBuf| {
-            let j = serde_json::to_string_pretty(&data).unwrap();
+            let mut o = serde_json::json!(data);
+            o.sort_all_objects();
+            let j = o.to_string();
             match OpenOptions::new()
                 .write(true)
                 .create(true)
