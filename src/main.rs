@@ -55,6 +55,15 @@ fn main() {
                 .help("list dijo habits")
                 .conflicts_with("command"),
         )
+        .arg(
+            Arg::new("missing")
+                .long("missing")
+                .short('m')
+                .action(clap::ArgAction::Set)
+                .value_name("HABIT")
+                .help("missings habits")
+                .conflicts_with("command"),
+        )
         .get_matches();
 
     if let Some(c) = matches.get_one::<String>("command") {
@@ -74,6 +83,11 @@ fn main() {
         }
     } else if matches.get_flag("list") {
         for h in App::load_state().list_habits() {
+            println!("{h}");
+        }
+    } else if let Some(habit) = matches.get_one::<String>("missing") {
+        println!("forgot to fill {habit} on:\n");
+        for h in App::load_state().missed_habits_by_name(habit) {
             println!("{h}");
         }
     } else {

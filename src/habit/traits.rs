@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use chrono::{NaiveDate, Local, Days, Datelike};
 use cursive::direction::Direction;
 use cursive::event::{Event, EventResult};
 use cursive::view::CannotFocus;
@@ -37,6 +37,7 @@ pub trait HabitWrapper: erased_serde::Serialize + Sync + Send {
     fn remaining(&self, date: NaiveDate) -> u32;
     fn required_size(&mut self, _: Vec2) -> Vec2;
     fn take_focus(&mut self, _: Direction) -> Result<EventResult, CannotFocus>;
+    fn missed_dates(&self) -> Vec<NaiveDate>;
 
     fn inner_data_ref(&self) -> &InnerData;
     fn inner_data_mut_ref(&mut self) -> &mut InnerData;
@@ -86,6 +87,22 @@ macro_rules! auto_habit_impl {
             }
             fn is_auto(&self) -> bool {
                 Habit::is_auto(self)
+            }
+            fn missed_dates(&self) -> Vec<NaiveDate> {
+                let today = Local::now().date_naive();
+                let mut index = today.with_day(1).unwrap();
+
+                let mut days: Vec<NaiveDate> = Vec::new();
+
+                while index < today {
+                    if Habit::get_by_date(self, index).is_none() {
+                        days.push(index.clone());
+                    }
+
+                    index = index + Days::new(1);
+                }
+
+                days
             }
         }
     };
