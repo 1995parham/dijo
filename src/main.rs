@@ -27,10 +27,19 @@ lazy_static! {
 }
 
 fn main() {
-    let matches = ClapApp::new(env!("CARGO_PKG_NAME"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .about(env!("CARGO_PKG_DESCRIPTION"))
+    let matches = ClapApp::new(clap::crate_name!())
+        .version(clap::crate_version!())
+        .author(clap::crate_authors!("\n"))
+        .about(clap::crate_description!())
+        .help_template(
+            "\
+{before-help}{name} {version}
+{author-with-newline}{about-with-newline}
+{usage-heading} {usage}
+
+{all-args}{after-help}
+",
+        )
         .arg(
             Arg::new("command")
                 .long("command")
