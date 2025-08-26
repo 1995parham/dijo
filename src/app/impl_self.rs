@@ -33,10 +33,7 @@ impl App {
     }
 
     pub fn missed_habits_by_name(&self, name: &str) -> Vec<String> {
-        let target_habit = self
-            .habits
-            .iter()
-            .find(|x| x.name() == name);
+        let target_habit = self.habits.iter().find(|x| x.name() == name);
 
         if let Some(h) = target_habit {
             h.missed_dates().iter().map(|i| i.to_string()).collect()

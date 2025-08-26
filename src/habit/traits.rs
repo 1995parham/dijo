@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, Local, Days, Datelike};
+use chrono::{Datelike, Days, Local, NaiveDate};
 use cursive::direction::Direction;
 use cursive::event::{Event, EventResult};
 use cursive::view::CannotFocus;
