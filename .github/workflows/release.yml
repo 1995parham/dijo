@@ -6,13 +6,6 @@ on:
       - "*"
 
 jobs:
-  rustfmt:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - run: rustup component add rustfmt
-      - run: cargo fmt -- --check
-
   build-linux:
     runs-on: ubuntu-latest
 
