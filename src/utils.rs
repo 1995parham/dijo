@@ -131,4 +131,3 @@ pub fn habit_file() -> PathBuf {
     data_file.push("habit_record.json");
     data_file
 }
-

@@ -8,7 +8,7 @@ mod utils;
 mod views;
 
 use crate::app::App;
-use crate::command::{open_command_window};
+use crate::command::open_command_window;
 use crate::utils::{AppConfig, load_configuration_file};
 
 use clap::{Arg, Command as ClapApp};
