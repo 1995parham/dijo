@@ -13,10 +13,8 @@ use crate::utils::{AppConfig, load_configuration_file};
 
 use clap::{Arg, Command as ClapApp};
 
-#[cfg(any(feature = "termion-backend", feature = "default"))]
-use cursive::termion;
-
 use cursive::views::{LinearLayout, NamedView};
+use cursive::{Cursive, CursiveExt};
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -66,8 +64,7 @@ fn main() {
             println!("{h}");
         }
     } else {
-        #[cfg(any(feature = "termion-backend", feature = "default"))]
-        let mut s = termion();
+        let mut s = Cursive::new();
 
         let app = App::load_state();
         let layout = NamedView::new(
