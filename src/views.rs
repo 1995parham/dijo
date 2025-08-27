@@ -123,16 +123,14 @@ where
                     printer.with_style(day_style, |p| {
                         p.print(coords, &format!("{c:^3}"));
                     });
+                } else if d < now {
+                    printer.with_style(fs, |p| {
+                        p.print(coords, &format!("{:^3}", CONFIGURATION.look.missing_chr));
+                    });
                 } else {
-                    if d < now {
-                        printer.with_style(fs, |p| {
-                            p.print(coords, &format!("{:^3}", CONFIGURATION.look.missing_chr));
-                        });
-                    } else {
-                        printer.with_style(fs, |p| {
-                            p.print(coords, &format!("{:^3}", CONFIGURATION.look.future_chr));
-                        });
-                    }
+                    printer.with_style(fs, |p| {
+                        p.print(coords, &format!("{:^3}", CONFIGURATION.look.future_chr));
+                    });
                 }
                 i += 1;
             }
