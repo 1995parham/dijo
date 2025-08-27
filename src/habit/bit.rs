@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::CONFIGURATION;
 use crate::command::GoalKind;
-use crate::habit::prelude::default_auto;
 use crate::habit::traits::Habit;
 use crate::habit::{InnerData, TrackEvent};
 
@@ -40,20 +39,16 @@ pub struct Bit {
     stats: HashMap<NaiveDate, CustomBool>,
     goal: CustomBool,
 
-    #[serde(default = "default_auto")]
-    auto: bool,
-
     #[serde(skip)]
     inner_data: InnerData,
 }
 
 impl Bit {
-    pub fn new(name: impl AsRef<str>, auto: bool) -> Self {
+    pub fn new(name: impl AsRef<str>) -> Self {
         Bit {
             name: name.as_ref().to_owned(),
             stats: HashMap::new(),
             goal: CustomBool(true),
-            auto,
             inner_data: Default::default(),
         }
     }
@@ -112,8 +107,5 @@ impl Habit for Bit {
     }
     fn inner_data_mut_ref(&mut self) -> &mut InnerData {
         &mut self.inner_data
-    }
-    fn is_auto(&self) -> bool {
-        self.auto
     }
 }

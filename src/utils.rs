@@ -19,6 +19,8 @@ pub struct Characters {
     pub false_chr: char,
     #[serde(default = "base_char")]
     pub future_chr: char,
+    #[serde(default = "base_char")]
+    pub missing_chr: char,
 }
 
 fn base_char() -> char {
@@ -28,9 +30,10 @@ fn base_char() -> char {
 impl Default for Characters {
     fn default() -> Self {
         Characters {
-            true_chr: '·',
-            false_chr: '·',
-            future_chr: '·',
+            true_chr: '+',
+            false_chr: '-',
+            future_chr: '.',
+            missing_chr: '?',
         }
     }
 }
@@ -75,7 +78,6 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    // TODO: implement string parsing from config.json
     pub fn reached_color(&self) -> Color {
         Color::parse(&self.colors.reached).unwrap_or(Color::Dark(BaseColor::Cyan))
     }
@@ -130,10 +132,3 @@ pub fn habit_file() -> PathBuf {
     data_file
 }
 
-pub fn auto_habit_file() -> PathBuf {
-    let proj_dirs = project_dirs();
-    let mut data_file = PathBuf::from(proj_dirs.data_dir());
-    fs::create_dir_all(&data_file);
-    data_file.push("habit_record[auto].json");
-    data_file
-}

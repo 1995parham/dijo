@@ -8,7 +8,6 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::command::GoalKind;
-use crate::habit::prelude::default_auto;
 use crate::habit::traits::Habit;
 use crate::habit::{InnerData, TrackEvent};
 
@@ -83,15 +82,13 @@ pub struct Float {
     stats: HashMap<NaiveDate, FloatData>,
     goal: FloatData,
     precision: u8,
-    #[serde(default = "default_auto")]
-    auto: bool,
 
     #[serde(skip)]
     inner_data: InnerData,
 }
 
 impl Float {
-    pub fn new(name: impl AsRef<str>, goal: u32, precision: u8, auto: bool) -> Self {
+    pub fn new(name: impl AsRef<str>, goal: u32, precision: u8) -> Self {
         Float {
             name: name.as_ref().to_owned(),
             stats: HashMap::new(),
@@ -100,7 +97,6 @@ impl Float {
                 precision,
             },
             precision,
-            auto,
             inner_data: Default::default(),
         }
     }
@@ -168,8 +164,5 @@ impl Habit for Float {
     }
     fn inner_data_mut_ref(&mut self) -> &mut InnerData {
         &mut self.inner_data
-    }
-    fn is_auto(&self) -> bool {
-        self.auto
     }
 }

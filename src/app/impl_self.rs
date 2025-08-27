@@ -9,7 +9,7 @@ use cursive::Vec2;
 use cursive::direction::Absolute;
 
 use crate::command::{Command, CommandLineError, GoalKind};
-use crate::habit::{Bit, Count, Float, HabitWrapper, TrackEvent, ViewMode};
+use crate::habit::{Bit, Count, Float, HabitWrapper, ViewMode};
 use crate::utils::{self, GRID_WIDTH, VIEW_HEIGHT, VIEW_WIDTH};
 
 use crate::app::{App, Cursor, Message, MessageKind, StatusLine};
@@ -168,7 +168,7 @@ impl App {
     }
 
     pub fn load_state() -> Self {
-        let (regular_f, auto_f) = (utils::habit_file(), utils::auto_habit_file());
+        let regular_f = utils::habit_file();
         let read_from_file = |file: PathBuf| -> Vec<Box<dyn HabitWrapper>> {
             if let Ok(ref mut f) = File::open(file) {
                 let mut j = String::new();
@@ -179,9 +179,7 @@ impl App {
             }
         };
 
-        let mut regular = read_from_file(regular_f);
-        let auto = read_from_file(auto_f);
-        regular.extend(auto);
+        let regular = read_from_file(regular_f);
         App {
             habits: regular,
             ..Default::default()
@@ -191,8 +189,8 @@ impl App {
     // this function does IO
     // TODO: convert this into non-blocking async function
     pub fn save_state(&self) {
-        let (regular, auto): (Vec<_>, Vec<_>) = self.habits.iter().partition(|&x| !x.is_auto());
-        let (regular_f, auto_f) = (utils::habit_file(), utils::auto_habit_file());
+        let regular: Vec<_> = self.habits.iter().collect();
+        let regular_f = utils::habit_file();
 
         let write_to_file = |data: Vec<&Box<dyn HabitWrapper>>, file: PathBuf| {
             let mut o = serde_json::json!(data);
@@ -210,22 +208,12 @@ impl App {
         };
 
         write_to_file(regular, regular_f);
-        write_to_file(auto, auto_f);
     }
 
     pub fn parse_command(&mut self, result: Result<Command, CommandLineError>) {
-        let mut _track = |name: &str, event: TrackEvent| {
-            let target_habit = self
-                .habits
-                .iter_mut()
-                .find(|x| x.name() == name && x.is_auto());
-            if let Some(h) = target_habit {
-                h.modify(Local::now().naive_local().date(), event);
-            }
-        };
         match result {
             Ok(c) => match c {
-                Command::Add(name, goal, auto) => {
+                Command::Add(name, goal) => {
                     if self.habits.iter().any(|x| x.name() == name) {
                         self.message.set_kind(MessageKind::Error);
                         self.message
@@ -234,30 +222,24 @@ impl App {
                     }
                     match goal {
                         Some(GoalKind::Bit) => {
-                            self.add_habit(Box::new(Bit::new(name, auto)));
+                            self.add_habit(Box::new(Bit::new(name)));
                         }
                         Some(GoalKind::Count(v)) => {
-                            self.add_habit(Box::new(Count::new(name, v, auto)));
+                            self.add_habit(Box::new(Count::new(name, v)));
                         }
                         Some(GoalKind::Float(v, p)) => {
                             self.message.set_kind(MessageKind::Error);
                             self.message.set_message("Added floating habit");
-                            self.add_habit(Box::new(Float::new(name, v, p, auto)));
+                            self.add_habit(Box::new(Float::new(name, v, p)));
                         }
                         _ => {
-                            self.add_habit(Box::new(Count::new(name, 0, auto)));
+                            self.add_habit(Box::new(Count::new(name, 0)));
                         }
                     }
                 }
                 Command::Delete(name) => {
                     self.delete_by_name(&name);
                     self.focus = 0;
-                }
-                Command::TrackUp(name) => {
-                    _track(&name, TrackEvent::Increment);
-                }
-                Command::TrackDown(name) => {
-                    _track(&name, TrackEvent::Decrement);
                 }
                 Command::Help(input) => {
                     if let Some(topic) = input.as_ref().map(String::as_ref) {
@@ -269,7 +251,6 @@ impl App {
                                 "mprev" | "month-prev" => "month-prev     (alias: mprev)",
                                 "mnext" | "month-next" => "month-next     (alias: mnext)",
                                 "tup"   | "track-up" => "track-up <auto-habit-name>     (alias: tup)",
-                                "tdown" | "track-down" => "track-down <auto-habit-name>     (alias: tdown)",
                                 "q"     | "quit" => "quit dijo",
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",

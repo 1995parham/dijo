@@ -8,16 +8,13 @@ mod utils;
 mod views;
 
 use crate::app::App;
-use crate::command::{Command, open_command_window};
+use crate::command::{open_command_window};
 use crate::utils::{AppConfig, load_configuration_file};
 
 use clap::{Arg, Command as ClapApp};
 
 #[cfg(any(feature = "termion-backend", feature = "default"))]
 use cursive::termion;
-
-#[cfg(feature = "crossterm-backend")]
-use cursive::crossterm;
 
 use cursive::views::{LinearLayout, NamedView};
 use lazy_static::lazy_static;
@@ -41,19 +38,12 @@ fn main() {
 ",
         )
         .arg(
-            Arg::new("command")
-                .long("command")
-                .short('c')
-                .value_name("CMD")
-                .help("run a dijo command"),
-        )
-        .arg(
             Arg::new("list")
                 .long("list")
                 .short('l')
                 .action(clap::ArgAction::SetTrue)
                 .help("list dijo habits")
-                .conflicts_with("command"),
+                .conflicts_with("missing"),
         )
         .arg(
             Arg::new("missing")
@@ -62,26 +52,11 @@ fn main() {
                 .action(clap::ArgAction::Set)
                 .value_name("HABIT")
                 .help("missings habits")
-                .conflicts_with("command"),
+                .conflicts_with("list"),
         )
         .get_matches();
 
-    if let Some(c) = matches.get_one::<String>("command") {
-        let command = Command::from_string(c);
-        match command {
-            Ok(Command::TrackUp(_)) | Ok(Command::TrackDown(_)) => {
-                let mut app = App::load_state();
-                app.parse_command(command);
-                app.save_state();
-            }
-            Err(e) => {
-                eprintln!("{e}");
-            }
-            _ => eprintln!(
-                "Commands other than `track-up` and `track-down` are currently not supported!"
-            ),
-        }
-    } else if matches.get_flag("list") {
+    if matches.get_flag("list") {
         for h in App::load_state().list_habits() {
             println!("{h}");
         }
@@ -93,9 +68,6 @@ fn main() {
     } else {
         #[cfg(any(feature = "termion-backend", feature = "default"))]
         let mut s = termion();
-
-        #[cfg(feature = "crossterm-backend")]
-        let mut s = crossterm();
 
         let app = App::load_state();
         let layout = NamedView::new(

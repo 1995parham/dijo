@@ -5,7 +5,6 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::command::GoalKind;
-use crate::habit::prelude::default_auto;
 use crate::habit::traits::Habit;
 use crate::habit::{InnerData, TrackEvent};
 
@@ -15,20 +14,16 @@ pub struct Count {
     stats: HashMap<NaiveDate, u32>,
     goal: u32,
 
-    #[serde(default = "default_auto")]
-    auto: bool,
-
     #[serde(skip)]
     inner_data: InnerData,
 }
 
 impl Count {
-    pub fn new(name: impl AsRef<str>, goal: u32, auto: bool) -> Self {
+    pub fn new(name: impl AsRef<str>, goal: u32) -> Self {
         Count {
             name: name.as_ref().to_owned(),
             stats: HashMap::new(),
             goal,
-            auto,
             inner_data: Default::default(),
         }
     }
@@ -90,8 +85,5 @@ impl Habit for Count {
     }
     fn inner_data_mut_ref(&mut self) -> &mut InnerData {
         &mut self.inner_data
-    }
-    fn is_auto(&self) -> bool {
-        self.auto
     }
 }

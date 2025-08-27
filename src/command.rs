@@ -144,12 +144,10 @@ impl FromStr for GoalKind {
 
 #[derive(PartialEq)]
 pub enum Command {
-    Add(String, Option<GoalKind>, bool),
+    Add(String, Option<GoalKind>),
     MonthPrev,
     MonthNext,
     Delete(String),
-    TrackUp(String),
-    TrackDown(String),
     Help(Option<String>),
     Write,
     Quit,
@@ -191,38 +189,21 @@ impl Command {
 
         let first = strings.first().unwrap().to_string();
         let mut args: Vec<String> = strings.iter_mut().skip(1).map(|s| s.to_string()).collect();
-        let mut _add = |auto: bool, first: String| {
+        let mut _add = |first: String| {
             if args.is_empty() {
                 return Err(CommandLineError::NotEnoughArgs(first, 1));
             }
             let goal = args.get(1).map(|x| GoalKind::from_str(x)).transpose()?;
-            Ok(Command::Add(
-                args.get_mut(0).unwrap().to_string(),
-                goal,
-                auto,
-            ))
+            Ok(Command::Add(args.get_mut(0).unwrap().to_string(), goal))
         };
 
         match first.as_ref() {
-            "add" | "a" => _add(false, first),
-            "add-auto" | "aa" => _add(true, first),
+            "add" | "a" => _add(first),
             "delete" | "d" => {
                 if args.is_empty() {
                     return Err(CommandLineError::NotEnoughArgs(first, 1));
                 }
                 Ok(Command::Delete(args[0].to_string()))
-            }
-            "track-up" | "tup" => {
-                if args.is_empty() {
-                    return Err(CommandLineError::NotEnoughArgs(first, 1));
-                }
-                Ok(Command::TrackUp(args[0].to_string()))
-            }
-            "track-down" | "tdown" => {
-                if args.is_empty() {
-                    return Err(CommandLineError::NotEnoughArgs(first, 1));
-                }
-                Ok(Command::TrackDown(args[0].to_string()))
             }
             "h" | "?" | "help" => {
                 if args.is_empty() {

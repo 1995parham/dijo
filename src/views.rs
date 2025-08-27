@@ -28,15 +28,8 @@ where
     T::HabitType: std::fmt::Display,
 {
     fn draw(&self, printer: &Printer) {
-        // let now = if self.view_month_offset() == 0 {
-        //     Local::today()
-        // } else {
-        //     Local::today()
-        //         .checked_sub_signed(Duration::weeks(4 * self.view_month_offset() as i64))
-        //         .unwrap()
-        // };
         let now = self.inner_data_ref().cursor().0;
-        let is_today = now == Local::now().naive_local().date();
+        let is_today = now == Local::now().date_naive();
         let year = now.year();
         let month = now.month();
 
@@ -45,7 +38,7 @@ where
 
         let strikethrough = Style::from(Effect::Strikethrough);
 
-        let goal_status = is_today && self.reached_goal(Local::now().naive_local().date());
+        let goal_status = is_today && self.reached_goal(Local::now().date_naive());
 
         printer.with_style(
             Style::merge(&[
@@ -74,7 +67,7 @@ where
                 .collect::<Vec<_>>();
             for (week, line_nr) in days.chunks(7).zip(2..) {
                 let weekly_goal = self.goal() * week.len() as u32;
-                let is_this_week = week.contains(&Local::now().naive_local().date());
+                let is_this_week = week.contains(&Local::now().date_naive());
                 let remaining = week.iter().map(|&i| self.remaining(i)).sum::<u32>();
                 let completions = weekly_goal - remaining;
                 let full = VIEW_WIDTH - 8;
@@ -131,9 +124,15 @@ where
                         p.print(coords, &format!("{c:^3}"));
                     });
                 } else {
-                    printer.with_style(fs, |p| {
-                        p.print(coords, &format!("{:^3}", CONFIGURATION.look.future_chr));
-                    });
+                    if d < now {
+                        printer.with_style(fs, |p| {
+                            p.print(coords, &format!("{:^3}", CONFIGURATION.look.missing_chr));
+                        });
+                    } else {
+                        printer.with_style(fs, |p| {
+                            p.print(coords, &format!("{:^3}", CONFIGURATION.look.future_chr));
+                        });
+                    }
                 }
                 i += 1;
             }
@@ -156,9 +155,6 @@ where
 
     fn on_event(&mut self, e: Event) -> EventResult {
         let now = self.inner_data_mut_ref().cursor().0;
-        if self.is_auto() {
-            return EventResult::Ignored;
-        }
         match e {
             Event::Key(Key::Enter) | Event::Char('n') => {
                 self.modify(now, TrackEvent::Increment);

@@ -22,8 +22,6 @@ pub trait Habit {
 
     fn inner_data_ref(&self) -> &InnerData;
     fn inner_data_mut_ref(&mut self) -> &mut InnerData;
-
-    fn is_auto(&self) -> bool;
 }
 
 #[typetag::serde(tag = "type")]
@@ -41,8 +39,6 @@ pub trait HabitWrapper: erased_serde::Serialize + Sync + Send {
 
     fn inner_data_ref(&self) -> &InnerData;
     fn inner_data_mut_ref(&mut self) -> &mut InnerData;
-
-    fn is_auto(&self) -> bool;
 }
 
 macro_rules! auto_habit_impl {
@@ -84,9 +80,6 @@ macro_rules! auto_habit_impl {
             }
             fn inner_data_mut_ref(&mut self) -> &mut InnerData {
                 Habit::inner_data_mut_ref(self)
-            }
-            fn is_auto(&self) -> bool {
-                Habit::is_auto(self)
             }
             fn missed_dates(&self) -> Vec<NaiveDate> {
                 let today = Local::now().date_naive();
