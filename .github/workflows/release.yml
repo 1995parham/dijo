@@ -46,10 +46,7 @@ jobs:
       - name: Create package directory
         run: |
           mkdir package
-          cp LICENSE README.md package/
-          if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
-            cp dijo.1 package/
-          fi
+          cp LICENSE README.md dijo.1 package/
 
       - name: Package for Linux/macOS
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
