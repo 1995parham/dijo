@@ -68,7 +68,7 @@ impl Habit for Count {
         match event {
             TrackEvent::Increment => {
                 if let Some(val) = self.stats.get_mut(&date) {
-                    *val = *val + 1
+                    *val += 1
                 } else {
                     self.insert_entry(date, 1);
                 }
@@ -76,7 +76,7 @@ impl Habit for Count {
             TrackEvent::Decrement => {
                 if let Some(val) = self.stats.get_mut(&date) {
                     if *val > 0 {
-                        *val = *val - 1
+                        *val -= 1
                     } else {
                         self.stats.remove(&date);
                     }
