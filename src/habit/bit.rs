@@ -87,10 +87,16 @@ impl Habit for Bit {
         1
     }
     fn modify(&mut self, date: NaiveDate, event: TrackEvent) {
-        if let Some(val) = self.stats.get_mut(&date) {
-            match event {
-                TrackEvent::Increment => *val = (val.0 ^ true).into(),
-                TrackEvent::Decrement => {
+        match event {
+            TrackEvent::Increment => {
+                if let Some(val) = self.stats.get_mut(&date) {
+                    *val = (val.0 ^ true).into()
+                } else {
+                    self.insert_entry(date, CustomBool(true));
+                }
+            }
+            TrackEvent::Decrement => {
+                if let Some(val) = self.stats.get_mut(&date) {
                     if val.0 {
                         *val = false.into();
                     } else {
@@ -98,8 +104,6 @@ impl Habit for Bit {
                     }
                 }
             }
-        } else if event == TrackEvent::Increment {
-            self.insert_entry(date, CustomBool(true));
         }
     }
     fn inner_data_ref(&self) -> &InnerData {

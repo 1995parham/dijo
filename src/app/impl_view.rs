@@ -74,7 +74,6 @@ impl View for App {
                 self.set_focus(Absolute::Down);
                 EventResult::Consumed(None)
             }
-
             Event::Char('K') | Event::Shift(Key::Up) => {
                 self.move_cursor(Absolute::Up);
                 EventResult::Consumed(None)

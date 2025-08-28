@@ -154,11 +154,11 @@ where
     fn on_event(&mut self, e: Event) -> EventResult {
         let now = self.inner_data_mut_ref().cursor().0;
         match e {
-            Event::Key(Key::Enter) | Event::Char('n') => {
+            Event::Key(Key::Enter) | Event::Char('n') | Event::CtrlChar('a') => {
                 self.modify(now, TrackEvent::Increment);
                 EventResult::Consumed(None)
             }
-            Event::Key(Key::Backspace) | Event::Char('p') => {
+            Event::Key(Key::Backspace) | Event::Char('p') | Event::CtrlChar('x') => {
                 self.modify(now, TrackEvent::Decrement);
                 EventResult::Consumed(None)
             }

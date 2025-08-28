@@ -138,10 +138,22 @@ impl Habit for Float {
         self.goal.value
     }
     fn modify(&mut self, date: NaiveDate, event: TrackEvent) {
-        if let Some(val) = self.stats.get_mut(&date) {
-            match event {
-                TrackEvent::Increment => *val = val.add(1),
-                TrackEvent::Decrement => {
+        match event {
+            TrackEvent::Increment => {
+                if let Some(val) = self.stats.get_mut(&date) {
+                    *val = val.add(1);
+                } else {
+                    self.insert_entry(
+                        date,
+                        FloatData {
+                            value: 1,
+                            precision: self.precision,
+                        },
+                    )
+                }
+            }
+            TrackEvent::Decrement => {
+                if let Some(val) = self.stats.get_mut(&date) {
                     if *val > FloatData::zero() {
                         *val = val.sub(1);
                     } else {
@@ -149,14 +161,6 @@ impl Habit for Float {
                     };
                 }
             }
-        } else if event == TrackEvent::Increment {
-            self.insert_entry(
-                date,
-                FloatData {
-                    value: 1,
-                    precision: self.precision,
-                },
-            )
         }
     }
     fn inner_data_ref(&self) -> &InnerData {

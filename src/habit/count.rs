@@ -65,19 +65,23 @@ impl Habit for Count {
         self.goal
     }
     fn modify(&mut self, date: NaiveDate, event: TrackEvent) {
-        if let Some(val) = self.stats.get_mut(&date) {
-            match event {
-                TrackEvent::Increment => *val += 1,
-                TrackEvent::Decrement => {
-                    if *val > 0 {
-                        *val -= 1
-                    } else {
-                        self.stats.remove(&date);
-                    };
+        match event {
+            TrackEvent::Increment => {
+                if let Some(val) = self.stats.get_mut(&date) {
+                    *val = *val + 1
+                } else {
+                    self.insert_entry(date, 1);
                 }
             }
-        } else if event == TrackEvent::Increment {
-            self.insert_entry(date, 1)
+            TrackEvent::Decrement => {
+                if let Some(val) = self.stats.get_mut(&date) {
+                    if *val > 0 {
+                        *val = *val - 1
+                    } else {
+                        self.stats.remove(&date);
+                    }
+                }
+            }
         }
     }
     fn inner_data_ref(&self) -> &InnerData {
