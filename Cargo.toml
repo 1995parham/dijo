@@ -14,7 +14,7 @@ license = "MIT"
 [dependencies]
 lazy_static = "1.4.0"
 erased-serde = "0.4"
-typetag = "0.2.20"
+typetag = "0.2.21"
 directories = "6.0.0"
 toml = "0.9.2"
 syn = "=2.0.106"
