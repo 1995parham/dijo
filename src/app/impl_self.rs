@@ -239,7 +239,7 @@ impl App {
 
                 months_present
                     .entry((month, year))
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(date);
             }
 
@@ -263,7 +263,7 @@ impl App {
                 } else {
                     habits_by_month
                         .entry((month, year))
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(habit_json);
                 }
             }
