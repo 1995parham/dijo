@@ -227,10 +227,16 @@ impl App {
 
             // Check which months this habit's stats belong to
             let mut months_present: HashMap<(u32, i32), Vec<NaiveDate>> = HashMap::new();
+            let mut has_current_month = false;
 
             for date in dates {
                 let month = date.month();
                 let year = date.year();
+
+                if month == current_month && year == current_year {
+                    has_current_month = true;
+                }
+
                 months_present
                     .entry((month, year))
                     .or_insert_with(Vec::new)
@@ -260,6 +266,18 @@ impl App {
                         .or_insert_with(Vec::new)
                         .push(habit_json);
                 }
+            }
+
+            // If habit has no current month data, add it with empty stats
+            if !has_current_month {
+                let mut habit_json = serde_json::to_value(&**habit).unwrap();
+
+                // Clear the stats
+                if let Some(stats) = habit_json.get_mut("stats").and_then(|s| s.as_object_mut()) {
+                    stats.clear();
+                }
+
+                current_month_habits.push(habit_json);
             }
         }
 
