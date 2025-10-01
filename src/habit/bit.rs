@@ -65,6 +65,9 @@ impl Habit for Bit {
     fn get_by_date(&self, date: NaiveDate) -> Option<&Self::HabitType> {
         self.stats.get(&date)
     }
+    fn get_dates(&self) -> Vec<NaiveDate> {
+        self.stats.keys().copied().collect()
+    }
     fn insert_entry(&mut self, date: NaiveDate, val: Self::HabitType) {
         *self.stats.entry(date).or_insert(val) = val;
     }

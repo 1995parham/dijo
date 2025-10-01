@@ -3,8 +3,9 @@ use std::f64;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
+use std::collections::HashMap;
 
-use chrono::{Local, NaiveDate};
+use chrono::{Local, NaiveDate, Datelike};
 use cursive::Vec2;
 use cursive::direction::Absolute;
 
@@ -210,6 +211,105 @@ impl App {
         write_to_file(regular, regular_f);
     }
 
+    pub fn archive_habits(&mut self) {
+        let today = Local::now().date_naive();
+        let current_month = today.month();
+        let current_year = today.year();
+
+        // Group JSON habits by month
+        let mut habits_by_month: HashMap<(u32, i32), Vec<serde_json::Value>> = HashMap::new();
+        let mut current_month_habits: Vec<serde_json::Value> = Vec::new();
+
+        // Process each habit: check dates in Rust first, then serialize
+        for habit in self.habits.iter() {
+            // Get all dates from the habit using the trait method
+            let dates = habit.get_dates();
+
+            // Check which months this habit's stats belong to
+            let mut months_present: HashMap<(u32, i32), Vec<NaiveDate>> = HashMap::new();
+
+            for date in dates {
+                let month = date.month();
+                let year = date.year();
+                months_present
+                    .entry((month, year))
+                    .or_insert_with(Vec::new)
+                    .push(date);
+            }
+
+            // For each month, create a habit with only that month's stats
+            for ((month, year), month_dates) in months_present {
+                let mut habit_json = serde_json::to_value(&**habit).unwrap();
+
+                // Filter the stats to only include dates for this month
+                if let Some(stats) = habit_json.get_mut("stats").and_then(|s| s.as_object_mut()) {
+                    stats.retain(|date_str, _| {
+                        if let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+                            month_dates.contains(&date)
+                        } else {
+                            false
+                        }
+                    });
+                }
+
+                if month == current_month && year == current_year {
+                    current_month_habits.push(habit_json);
+                } else {
+                    habits_by_month
+                        .entry((month, year))
+                        .or_insert_with(Vec::new)
+                        .push(habit_json);
+                }
+            }
+        }
+
+        // Write archived habits to files
+        let archive_path = utils::archive_dir();
+        let mut archived_count = 0;
+
+        for ((month, year), habits) in habits_by_month.iter() {
+            // Create a date for this month to get the month name
+            let date = NaiveDate::from_ymd_opt(*year, *month, 1)
+                .unwrap_or_else(|| NaiveDate::from_ymd_opt(2000, 1, 1).unwrap());
+            let month_name = date.format("%b").to_string().to_lowercase();
+
+            let filename = format!("{}_{}.json", month_name, year);
+            let mut file_path = archive_path.clone();
+            file_path.push(filename);
+
+            let mut o = serde_json::json!(habits);
+            o.sort_all_objects();
+            let j = serde_json::to_string_pretty(&o).unwrap();
+
+            match OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(file_path)
+            {
+                Ok(ref mut f) => {
+                    f.write_all(j.as_bytes()).unwrap();
+                    archived_count += 1;
+                }
+                Err(_) => {
+                    self.message.set_kind(MessageKind::Error);
+                    self.message.set_message("Failed to write archive file");
+                    return;
+                }
+            }
+        }
+
+        // Update habits with current month data only
+        self.habits = serde_json::from_value(serde_json::Value::Array(current_month_habits))
+            .unwrap_or_else(|_| Vec::new());
+
+        if archived_count > 0 {
+            self.message.set_message(format!("Archived {} month(s) of habits", archived_count));
+        } else {
+            self.message.set_message("No old months to archive");
+        }
+    }
+
     pub fn parse_command(&mut self, result: Result<Command, CommandLineError>) {
         match result {
             Ok(c) => match c {
@@ -251,10 +351,11 @@ impl App {
                                 "mprev" | "month-prev" => "month-prev     (alias: mprev)",
                                 "mnext" | "month-next" => "month-next     (alias: mnext)",
                                 "tup"   | "track-up" => "track-up <auto-habit-name>     (alias: tup)",
+                                "archive" => "archive old months to separate files",
                                 "q"     | "quit" => "quit dijo",
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",
-                                "cmds"  | "commands" => "add, add-auto, delete, month-{prev,next}, track-{up,down}, help, quit",
+                                "cmds"  | "commands" => "add, add-auto, delete, month-{prev,next}, track-{up,down}, archive, help, quit",
                                 "keys" => "TODO", // TODO (view?)
                                 "wq" =>   "write current state to disk and quit dijo",
                                 _ => "unknown command or help topic.",
@@ -268,6 +369,10 @@ impl App {
                 Command::Quit | Command::Write | Command::WriteAndQuit => self.save_state(),
                 Command::MonthNext => self.sift_forward(),
                 Command::MonthPrev => self.sift_backward(),
+                Command::Archive => {
+                    self.archive_habits();
+                    self.save_state();
+                }
                 Command::Blank => {}
             },
             Err(e) => {

@@ -22,6 +22,7 @@ static COMMANDS: &[&str] = &[
     "write",
     "help",
     "writeandquit",
+    "archive",
 ];
 
 fn get_command_completion(prefix: &str) -> Option<String> {
@@ -153,6 +154,7 @@ pub enum Command {
     Quit,
     Blank,
     WriteAndQuit,
+    Archive,
 }
 
 #[derive(Debug)]
@@ -216,6 +218,7 @@ impl Command {
             "wq" | "writeandquit" => Ok(Command::WriteAndQuit),
             "q" | "quit" => Ok(Command::Quit),
             "w" | "write" => Ok(Command::Write),
+            "archive" => Ok(Command::Archive),
             "" => Ok(Command::Blank),
             s => Err(CommandLineError::InvalidCommand(s.into())),
         }

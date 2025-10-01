@@ -131,3 +131,11 @@ pub fn habit_file() -> PathBuf {
     data_file.push("habit_record.json");
     data_file
 }
+
+pub fn archive_dir() -> PathBuf {
+    let proj_dirs = project_dirs();
+    let mut archive_path = PathBuf::from(proj_dirs.data_dir());
+    archive_path.push("archive");
+    fs::create_dir_all(&archive_path);
+    archive_path
+}

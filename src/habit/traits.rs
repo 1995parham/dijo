@@ -12,6 +12,7 @@ pub trait Habit {
     type HabitType;
 
     fn get_by_date(&self, date: NaiveDate) -> Option<&Self::HabitType>;
+    fn get_dates(&self) -> Vec<NaiveDate>;
     fn goal(&self) -> u32;
     fn insert_entry(&mut self, date: NaiveDate, val: Self::HabitType);
     fn modify(&mut self, date: NaiveDate, event: TrackEvent);
@@ -27,6 +28,7 @@ pub trait Habit {
 #[typetag::serde(tag = "type")]
 pub trait HabitWrapper: erased_serde::Serialize + Sync + Send {
     fn draw(&self, printer: &Printer);
+    fn get_dates(&self) -> Vec<NaiveDate>;
     fn goal(&self) -> u32;
     fn kind(&self) -> GoalKind;
     fn modify(&mut self, date: NaiveDate, event: TrackEvent);
@@ -60,6 +62,9 @@ macro_rules! auto_habit_impl {
             }
 
             // Habit
+            fn get_dates(&self) -> Vec<NaiveDate> {
+                Habit::get_dates(self)
+            }
             fn remaining(&self, date: NaiveDate) -> u32 {
                 Habit::remaining(self, date)
             }
