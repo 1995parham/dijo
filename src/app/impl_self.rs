@@ -1,11 +1,11 @@
+use std::collections::HashMap;
 use std::default::Default;
 use std::f64;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
-use std::collections::HashMap;
 
-use chrono::{Local, NaiveDate, Datelike};
+use chrono::{Datelike, Local, NaiveDate};
 use cursive::Vec2;
 use cursive::direction::Absolute;
 
@@ -237,10 +237,7 @@ impl App {
                     has_current_month = true;
                 }
 
-                months_present
-                    .entry((month, year))
-                    .or_default()
-                    .push(date);
+                months_present.entry((month, year)).or_default().push(date);
             }
 
             // For each month, create a habit with only that month's stats
@@ -322,7 +319,8 @@ impl App {
             .unwrap_or_else(|_| Vec::new());
 
         if archived_count > 0 {
-            self.message.set_message(format!("Archived {} month(s) of habits", archived_count));
+            self.message
+                .set_message(format!("Archived {} month(s) of habits", archived_count));
         } else {
             self.message.set_message("No old months to archive");
         }
