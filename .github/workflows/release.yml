@@ -63,7 +63,7 @@ jobs:
           Compress-Archive -Path package -DestinationPath dijo-${{ matrix.target }}${{ matrix.archive_ext }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: dijo-${{ matrix.target }}
           path: dijo-${{ matrix.target }}${{ matrix.archive_ext }}
