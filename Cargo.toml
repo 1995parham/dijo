@@ -16,7 +16,7 @@ lazy_static = "1.5.0"
 erased-serde = "0.4"
 typetag = "0.2.21"
 directories = "6.0.0"
-toml = "0.9.11"
+toml = "0.9.12"
 syn = "=2.0.114"
 cursive = "0.21"
 
