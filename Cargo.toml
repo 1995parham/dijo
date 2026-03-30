@@ -12,12 +12,11 @@ categories = ["date-and-time", "command-line-interface"]
 license = "MIT"
 
 [dependencies]
-lazy_static = "1.5.0"
 erased-serde = "0.4"
 typetag = "0.2.21"
 directories = "6.0.0"
 toml = "1.1.0"
-syn = "=2.0.117"
+syn = "2"
 cursive = "0.21"
 
 [dependencies.chrono]

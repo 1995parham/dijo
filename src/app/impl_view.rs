@@ -1,5 +1,3 @@
-use std::f64;
-
 use cursive::direction::{Absolute, Direction};
 use cursive::event::{Event, EventResult, Key};
 use cursive::theme::Color;

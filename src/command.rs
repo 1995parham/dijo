@@ -73,9 +73,9 @@ pub fn open_command_window(s: &mut Cursive) {
         let mut commandline = LinearLayout::horizontal()
             .child(TextView::new(":"))
             .child(command_window);
-        commandline.set_focus_index(1);
+        let _ = commandline.set_focus_index(1);
         view.add_child(commandline);
-        view.set_focus_index(1);
+        let _ = view.set_focus_index(1);
     });
 }
 
@@ -86,12 +86,12 @@ fn call_on_app(s: &mut Cursive, input: &str) {
     // 3. remove the command window
     // 4. handle quit command
     s.call_on_name("Main", |view: &mut App| {
-        let cmd = Command::from_string(input);
+        let cmd = input.parse();
         view.clear_message();
         view.parse_command(cmd);
     });
     s.call_on_name("Frame", |view: &mut LinearLayout| {
-        view.set_focus_index(0);
+        let _ = view.set_focus_index(0);
         view.remove_child(view.get_focus_index());
     });
 
@@ -99,7 +99,7 @@ fn call_on_app(s: &mut Cursive, input: &str) {
     // our main cursive object, has to be parsed again
     // here
     // TODO: fix this somehow
-    match Command::from_string(input) {
+    match input.parse::<Command>() {
         Ok(Command::Quit) | Ok(Command::WriteAndQuit) => s.quit(),
         _ => {}
     }
@@ -182,9 +182,11 @@ impl fmt::Display for CommandLineError {
 
 type Result<T> = std::result::Result<T, CommandLineError>;
 
-impl Command {
-    pub fn from_string<P: AsRef<str>>(input: P) -> Result<Command> {
-        let mut strings: Vec<&str> = input.as_ref().trim().split(' ').collect();
+impl FromStr for Command {
+    type Err = CommandLineError;
+
+    fn from_str(input: &str) -> Result<Command> {
+        let mut strings: Vec<&str> = input.trim().split(' ').collect();
         if strings.is_empty() {
             return Ok(Command::Blank);
         }

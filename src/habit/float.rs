@@ -1,6 +1,4 @@
-use std::cmp::{Eq, Ord, PartialEq};
 use std::collections::HashMap;
-use std::default::Default;
 use std::fmt;
 use std::ops::{Add, Sub};
 
@@ -105,8 +103,8 @@ impl Float {
 impl Habit for Float {
     type HabitType = FloatData;
 
-    fn name(&self) -> String {
-        self.name.clone()
+    fn name(&self) -> &str {
+        &self.name
     }
     fn kind(&self) -> GoalKind {
         GoalKind::Float(self.goal.value, self.goal.precision)
@@ -121,12 +119,9 @@ impl Habit for Float {
         *self.stats.entry(date).or_insert(val) = val;
     }
     fn reached_goal(&self, date: NaiveDate) -> bool {
-        if let Some(val) = self.stats.get(&date)
-            && val >= &self.goal
-        {
-            return true;
-        }
-        false
+        self.stats
+            .get(&date)
+            .is_some_and(|val| val >= &self.goal)
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
         if self.reached_goal(date) {

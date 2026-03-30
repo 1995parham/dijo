@@ -2,7 +2,6 @@ use cursive::theme::{BaseColor, Color};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
-use std::default::Default;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -93,7 +92,8 @@ pub fn load_configuration_file() -> AppConfig {
     let cf = config_file();
     if let Ok(ref mut f) = File::open(&cf) {
         let mut j = String::new();
-        f.read_to_string(&mut j);
+        f.read_to_string(&mut j)
+            .unwrap_or_else(|e| panic!("Failed to read config file: `{e}`"));
         toml::from_str(&j).unwrap_or_else(|e| panic!("Invalid config file: `{e}`"))
     } else {
         if let Ok(dc) = toml::to_string(&AppConfig::default()) {
@@ -103,7 +103,9 @@ pub fn load_configuration_file() -> AppConfig {
                 .write(true)
                 .open(&cf)
             {
-                Ok(ref mut file) => file.write(dc.as_bytes()).unwrap(),
+                Ok(ref mut file) => {
+                    file.write_all(dc.as_bytes()).unwrap();
+                }
                 Err(_) => panic!("Unable to write config file to disk!"),
             };
         }
@@ -119,7 +121,7 @@ fn project_dirs() -> ProjectDirs {
 pub fn config_file() -> PathBuf {
     let proj_dirs = project_dirs();
     let mut data_file = PathBuf::from(proj_dirs.config_dir());
-    fs::create_dir_all(&data_file);
+    fs::create_dir_all(&data_file).unwrap_or_else(|e| panic!("Failed to create config dir: `{e}`"));
     data_file.push("config.toml");
     data_file
 }
@@ -127,7 +129,7 @@ pub fn config_file() -> PathBuf {
 pub fn habit_file() -> PathBuf {
     let proj_dirs = project_dirs();
     let mut data_file = PathBuf::from(proj_dirs.data_dir());
-    fs::create_dir_all(&data_file);
+    fs::create_dir_all(&data_file).unwrap_or_else(|e| panic!("Failed to create data dir: `{e}`"));
     data_file.push("habit_record.json");
     data_file
 }
@@ -136,6 +138,7 @@ pub fn archive_dir() -> PathBuf {
     let proj_dirs = project_dirs();
     let mut archive_path = PathBuf::from(proj_dirs.data_dir());
     archive_path.push("archive");
-    fs::create_dir_all(&archive_path);
+    fs::create_dir_all(&archive_path)
+        .unwrap_or_else(|e| panic!("Failed to create archive dir: `{e}`"));
     archive_path
 }

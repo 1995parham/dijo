@@ -1,5 +1,3 @@
-#![allow(unused_must_use)]
-
 mod app;
 mod command;
 mod habit;
@@ -15,11 +13,9 @@ use clap::{Arg, Command as ClapApp};
 
 use cursive::views::{LinearLayout, NamedView};
 use cursive::{Cursive, CursiveExt};
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref CONFIGURATION: AppConfig = load_configuration_file();
-}
+pub static CONFIGURATION: LazyLock<AppConfig> = LazyLock::new(load_configuration_file);
 
 fn main() {
     let matches = ClapApp::new(clap::crate_name!())

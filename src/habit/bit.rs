@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::default::Default;
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -56,8 +55,8 @@ impl Bit {
 
 impl Habit for Bit {
     type HabitType = CustomBool;
-    fn name(&self) -> String {
-        self.name.clone()
+    fn name(&self) -> &str {
+        &self.name
     }
     fn kind(&self) -> GoalKind {
         GoalKind::Bit
@@ -72,12 +71,9 @@ impl Habit for Bit {
         *self.stats.entry(date).or_insert(val) = val;
     }
     fn reached_goal(&self, date: NaiveDate) -> bool {
-        if let Some(val) = self.stats.get(&date)
-            && val.0 >= self.goal.0
-        {
-            return true;
-        }
-        false
+        self.stats
+            .get(&date)
+            .is_some_and(|val| val.0 >= self.goal.0)
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
         if let Some(val) = self.stats.get(&date) {

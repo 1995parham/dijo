@@ -1,5 +1,3 @@
-use std::default::Default;
-
 mod traits;
 pub use traits::{Habit, HabitWrapper};
 

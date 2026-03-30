@@ -16,7 +16,7 @@ pub trait Habit {
     fn goal(&self) -> u32;
     fn insert_entry(&mut self, date: NaiveDate, val: Self::HabitType);
     fn modify(&mut self, date: NaiveDate, event: TrackEvent);
-    fn name(&self) -> String;
+    fn name(&self) -> &str;
     fn reached_goal(&self, date: NaiveDate) -> bool;
     fn remaining(&self, date: NaiveDate) -> u32;
     fn kind(&self) -> GoalKind;
@@ -32,7 +32,7 @@ pub trait HabitWrapper: erased_serde::Serialize + Sync + Send {
     fn goal(&self) -> u32;
     fn kind(&self) -> GoalKind;
     fn modify(&mut self, date: NaiveDate, event: TrackEvent);
-    fn name(&self) -> String;
+    fn name(&self) -> &str;
     fn on_event(&mut self, event: Event) -> EventResult;
     fn remaining(&self, date: NaiveDate) -> u32;
     fn required_size(&mut self, _: Vec2) -> Vec2;
@@ -77,7 +77,7 @@ macro_rules! auto_habit_impl {
             fn modify(&mut self, date: NaiveDate, event: TrackEvent) {
                 Habit::modify(self, date, event);
             }
-            fn name(&self) -> String {
+            fn name(&self) -> &str {
                 Habit::name(self)
             }
             fn inner_data_ref(&self) -> &InnerData {
@@ -94,7 +94,7 @@ macro_rules! auto_habit_impl {
 
                 while index < today {
                     if Habit::get_by_date(self, index).is_none() {
-                        days.push(index.clone());
+                        days.push(index);
                     }
 
                     index = index + Days::new(1);

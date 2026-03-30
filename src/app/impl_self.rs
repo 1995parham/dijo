@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::default::Default;
-use std::f64;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
@@ -30,7 +28,7 @@ impl App {
     }
 
     pub fn list_habits(&self) -> Vec<String> {
-        self.habits.iter().map(|x| x.name()).collect::<Vec<_>>()
+        self.habits.iter().map(|x| x.name().to_owned()).collect()
     }
 
     pub fn missed_habits_by_name(&self, name: &str) -> Vec<String> {
@@ -173,7 +171,8 @@ impl App {
         let read_from_file = |file: PathBuf| -> Vec<Box<dyn HabitWrapper>> {
             if let Ok(ref mut f) = File::open(file) {
                 let mut j = String::new();
-                f.read_to_string(&mut j);
+                f.read_to_string(&mut j)
+                    .unwrap_or_else(|e| panic!("Failed to read habit file: `{e}`"));
                 serde_json::from_str(&j).unwrap()
             } else {
                 Vec::new()

@@ -327,7 +327,6 @@ dependencies = [
  "cursive",
  "directories",
  "erased-serde",
- "lazy_static",
  "serde",
  "serde_json",
  "syn",
