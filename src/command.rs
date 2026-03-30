@@ -12,10 +12,7 @@ use crate::utils::{GRID_WIDTH, VIEW_WIDTH};
 
 static COMMANDS: &[&str] = &[
     "add",
-    "add-auto",
     "delete",
-    "track-up",
-    "track-down",
     "month-prev",
     "month-next",
     "quit",

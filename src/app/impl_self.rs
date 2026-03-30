@@ -361,23 +361,20 @@ impl App {
                         self.message.set_message(
                             match topic {
                                 "a"     | "add" => "add <habit-name> [goal]     (alias: a)",
-                                "aa"    | "add-auto" => "add-auto <habit-name> [goal]     (alias: aa)",
                                 "d"     | "delete" => "delete <habit-name>     (alias: d)",
                                 "mprev" | "month-prev" => "month-prev     (alias: mprev)",
                                 "mnext" | "month-next" => "month-next     (alias: mnext)",
-                                "tup"   | "track-up" => "track-up <auto-habit-name>     (alias: tup)",
                                 "archive" => "archive old months to separate files",
                                 "q"     | "quit" => "quit dijo",
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",
-                                "cmds"  | "commands" => "add, add-auto, delete, month-{prev,next}, track-{up,down}, archive, help, quit",
-                                "keys" => "TODO", // TODO (view?)
+                                "cmds"  | "commands" => "add, delete, month-{prev,next}, archive, help, quit",
+                                "keys" => "hjkl/arrows: move | HJKL/S-arrows: cursor | n/Enter: +1 | p/BS: -1 | v/V: view | []: month | }: reset | Esc: reset all",
                                 "wq" =>   "write current state to disk and quit dijo",
                                 _ => "unknown command or help topic.",
                             }
                         )
                     } else {
-                        // TODO (view?)
                         self.message.set_message("help <command>|commands|keys")
                     }
                 }
