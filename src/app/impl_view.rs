@@ -94,16 +94,14 @@ impl View for App {
                 if self.habits.is_empty() {
                     return EventResult::Consumed(None);
                 }
-                if self.habits[self.focus].inner_data_ref().view_mode() == ViewMode::Week {
-                    self.set_mode(ViewMode::Day)
-                } else {
-                    self.set_mode(ViewMode::Week)
-                }
-                EventResult::Consumed(None)
-            }
-            Event::Char('V') => {
+                let next = match self.habits[self.focus].inner_data_ref().view_mode() {
+                    ViewMode::Day => ViewMode::Week,
+                    ViewMode::Week => ViewMode::Month,
+                    ViewMode::Month => ViewMode::Year,
+                    ViewMode::Year => ViewMode::Day,
+                };
                 for habit in self.habits.iter_mut() {
-                    habit.inner_data_mut_ref().set_view_mode(ViewMode::Week);
+                    habit.inner_data_mut_ref().set_view_mode(next);
                 }
                 EventResult::Consumed(None)
             }

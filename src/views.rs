@@ -9,7 +9,7 @@ use chrono::{Local, NaiveDate};
 
 use crate::habit::{Bit, Count, Float, Habit, TrackEvent, ViewMode};
 use crate::theme::cursor_bg;
-use crate::utils::VIEW_WIDTH;
+use crate::utils::{VIEW_HEIGHT, VIEW_WIDTH};
 
 use crate::CONFIGURATION;
 
@@ -136,15 +136,120 @@ where
             }
         };
 
+        let archived = &self.inner_data_ref().archived_reached;
+        let reached_or_archived = |date: NaiveDate| -> bool {
+            self.reached_goal(date) || archived.contains(&date)
+        };
+
+        let draw_month = |printer: &Printer| {
+            let today = Local::now().date_naive();
+            let months = [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+                "Nov", "Dec",
+            ];
+            let todo_style = Style::from(ColorStyle::front(CONFIGURATION.todo_color()));
+
+            for (idx, month_name) in months.iter().enumerate() {
+                let month_num = (idx + 1) as u32;
+                let col = idx % 3;
+                let row = idx / 3;
+
+                let mut total_days = 0u32;
+                let mut reached_days = 0u32;
+                for day in 1..=31 {
+                    if let Some(date) = NaiveDate::from_ymd_opt(year, month_num, day) {
+                        if date <= today {
+                            total_days += 1;
+                            if reached_or_archived(date) {
+                                reached_days += 1;
+                            }
+                        }
+                    }
+                }
+
+                let col_width = VIEW_WIDTH / 3;
+                let coords: Vec2 = (col * col_width, row + 2).into();
+
+                if total_days == 0 {
+                    printer.with_style(future_style, |p| {
+                        p.print(coords, &format!("{month_name}  --"));
+                    });
+                } else {
+                    let pct = (reached_days * 100) / total_days;
+                    let style = if reached_days >= total_days {
+                        goal_reached_style
+                    } else if reached_days > 0 {
+                        todo_style
+                    } else {
+                        future_style
+                    };
+                    printer.with_style(style, |p| {
+                        p.print(coords, &format!("{month_name}{pct:>4}%"));
+                    });
+                }
+            }
+        };
+
+        let draw_year = |printer: &Printer| {
+            let today = Local::now().date_naive();
+            let bar_width = VIEW_WIDTH - 9;
+
+            for i in 0..4 {
+                let y = year - 3 + i;
+                let line = i as usize + 2;
+
+                let mut total_days = 0u32;
+                let mut reached_days = 0u32;
+                for m in 1..=12 {
+                    for day in 1..=31 {
+                        if let Some(date) = NaiveDate::from_ymd_opt(y, m, day) {
+                            if date <= today {
+                                total_days += 1;
+                                if reached_or_archived(date) {
+                                    reached_days += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let filled = if total_days > 0 {
+                    (reached_days as usize * bar_width) / total_days as usize
+                } else {
+                    0
+                };
+                let pct = if total_days > 0 {
+                    (reached_days * 100) / total_days
+                } else {
+                    0
+                };
+
+                printer.with_style(future_style, |p| {
+                    p.print((0, line), &format!("{y}"));
+                    p.print((4, line), &"─".repeat(bar_width));
+                });
+
+                if total_days > 0 {
+                    printer.with_style(goal_reached_style, |p| {
+                        p.print((4, line), &"─".repeat(filled));
+                    });
+                    printer.with_style(Style::none(), |p| {
+                        p.print((4 + bar_width, line), &format!("{pct:>3}%"));
+                    });
+                }
+            }
+        };
+
         match self.inner_data_ref().view_mode() {
             ViewMode::Day => draw_day(printer),
             ViewMode::Week => draw_week(printer),
-            _ => draw_day(printer),
+            ViewMode::Month => draw_month(printer),
+            ViewMode::Year => draw_year(printer),
         };
     }
 
     fn required_size(&mut self, _: Vec2) -> Vec2 {
-        (25, 6).into()
+        (VIEW_WIDTH, VIEW_HEIGHT - 2).into()
     }
 
     fn take_focus(&mut self, _: Direction) -> Result<EventResult, CannotFocus> {

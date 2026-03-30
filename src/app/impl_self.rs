@@ -58,14 +58,6 @@ impl App {
         self.habits[self.focus].inner_data_ref().view_mode()
     }
 
-    pub fn set_mode(&mut self, mode: ViewMode) {
-        if !self.habits.is_empty() {
-            self.habits[self.focus]
-                .inner_data_mut_ref()
-                .set_view_mode(mode);
-        }
-    }
-
     pub fn sift_backward(&mut self) {
         self.cursor.month_backward();
         for v in self.habits.iter_mut() {
@@ -179,7 +171,15 @@ impl App {
             }
         };
 
-        let regular = read_from_file(regular_f);
+        let mut regular = read_from_file(regular_f);
+
+        let archived = utils::load_archived_reached_goals();
+        for habit in regular.iter_mut() {
+            if let Some(dates) = archived.get(habit.name()) {
+                habit.inner_data_mut_ref().archived_reached = dates.clone();
+            }
+        }
+
         App {
             habits: regular,
             ..Default::default()
@@ -369,7 +369,7 @@ impl App {
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",
                                 "cmds"  | "commands" => "add, delete, month-{prev,next}, archive, help, quit",
-                                "keys" => "hjkl/arrows: move | HJKL/S-arrows: cursor | n/Enter: +1 | p/BS: -1 | v/V: view | []: month | }: reset | Esc: reset all",
+                                "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/year) | V: all week | []: month | Esc: reset",
                                 "wq" =>   "write current state to disk and quit dijo",
                                 _ => "unknown command or help topic.",
                             }

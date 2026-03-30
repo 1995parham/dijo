@@ -1,13 +1,15 @@
+use chrono::NaiveDate;
 use cursive::theme::{BaseColor, Color};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-pub const VIEW_WIDTH: usize = 25;
-pub const VIEW_HEIGHT: usize = 8;
+pub const VIEW_WIDTH: usize = 30;
+pub const VIEW_HEIGHT: usize = 10;
 pub const GRID_WIDTH: usize = 3;
 
 #[derive(Serialize, Deserialize)]
@@ -141,4 +143,90 @@ pub fn archive_dir() -> PathBuf {
     fs::create_dir_all(&archive_path)
         .unwrap_or_else(|e| panic!("Failed to create archive dir: `{e}`"));
     archive_path
+}
+
+/// Scan archive files and return reached-goal dates grouped by habit name.
+/// Archive files are `{month}_{year}.json` containing arrays of serialized habits.
+/// Each habit has "name", "goal", and "stats" fields.
+pub fn load_archived_reached_goals() -> HashMap<String, HashSet<NaiveDate>> {
+    let archive_path = archive_dir();
+    let mut result: HashMap<String, HashSet<NaiveDate>> = HashMap::new();
+
+    let entries = match fs::read_dir(&archive_path) {
+        Ok(e) => e,
+        Err(_) => return result,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+
+        let mut f = match File::open(&path) {
+            Ok(f) => f,
+            Err(_) => continue,
+        };
+        let mut contents = String::new();
+        if f.read_to_string(&mut contents).is_err() {
+            continue;
+        }
+
+        let habits: Vec<serde_json::Value> = match serde_json::from_str(&contents) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        for habit in habits {
+            let name = match habit.get("name").and_then(|n| n.as_str()) {
+                Some(n) => n.to_string(),
+                None => continue,
+            };
+
+            let goal = habit.get("goal");
+            let habit_type = habit.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let stats = match habit.get("stats").and_then(|s| s.as_object()) {
+                Some(s) => s,
+                None => continue,
+            };
+
+            let dates = result.entry(name).or_default();
+
+            for (date_str, value) in stats {
+                let date = match NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+                    Ok(d) => d,
+                    Err(_) => continue,
+                };
+
+                let reached = match habit_type {
+                    "Bit" => value.as_bool().unwrap_or(false),
+                    "Count" => {
+                        let val = value.as_u64().unwrap_or(0) as u32;
+                        let g = goal.and_then(|g| g.as_u64()).unwrap_or(0) as u32;
+                        g == 0 || val >= g
+                    }
+                    "Float" => {
+                        let val = value
+                            .as_object()
+                            .and_then(|o| o.get("value"))
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as u32;
+                        let g = goal
+                            .and_then(|g| g.as_object())
+                            .and_then(|o| o.get("value"))
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as u32;
+                        g == 0 || val >= g
+                    }
+                    _ => false,
+                };
+
+                if reached {
+                    dates.insert(date);
+                }
+            }
+        }
+    }
+
+    result
 }
