@@ -137,15 +137,13 @@ where
         };
 
         let archived = &self.inner_data_ref().archived_reached;
-        let reached_or_archived = |date: NaiveDate| -> bool {
-            self.reached_goal(date) || archived.contains(&date)
-        };
+        let reached_or_archived =
+            |date: NaiveDate| -> bool { self.reached_goal(date) || archived.contains(&date) };
 
         let draw_month = |printer: &Printer| {
             let today = Local::now().date_naive();
             let months = [
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
-                "Nov", "Dec",
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
             ];
             let todo_style = Style::from(ColorStyle::front(CONFIGURATION.todo_color()));
 

@@ -47,9 +47,7 @@ impl Habit for Count {
         *self.stats.entry(date).or_insert(val) = val;
     }
     fn reached_goal(&self, date: NaiveDate) -> bool {
-        self.stats
-            .get(&date)
-            .is_some_and(|val| val >= &self.goal)
+        self.stats.get(&date).is_some_and(|val| val >= &self.goal)
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
         if self.reached_goal(date) {
