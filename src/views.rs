@@ -155,14 +155,13 @@ where
                 let mut total_days = 0u32;
                 let mut reached_days = 0u32;
                 for day in 1..=31 {
-                    if let Some(date) = NaiveDate::from_ymd_opt(year, month_num, day) {
-                        if date <= today {
+                    if let Some(date) = NaiveDate::from_ymd_opt(year, month_num, day)
+                        && date <= today {
                             total_days += 1;
                             if reached_or_archived(date) {
                                 reached_days += 1;
                             }
                         }
-                    }
                 }
 
                 let col_width = VIEW_WIDTH / 3;
@@ -200,14 +199,13 @@ where
                 let mut reached_days = 0u32;
                 for m in 1..=12 {
                     for day in 1..=31 {
-                        if let Some(date) = NaiveDate::from_ymd_opt(y, m, day) {
-                            if date <= today {
+                        if let Some(date) = NaiveDate::from_ymd_opt(y, m, day)
+                            && date <= today {
                                 total_days += 1;
                                 if reached_or_archived(date) {
                                     reached_days += 1;
                                 }
                             }
-                        }
                     }
                 }
 
