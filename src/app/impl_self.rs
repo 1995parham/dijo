@@ -343,8 +343,6 @@ impl App {
                             self.add_habit(Box::new(Count::new(name, v)));
                         }
                         Some(GoalKind::Float(v, p)) => {
-                            self.message.set_kind(MessageKind::Error);
-                            self.message.set_message("Added floating habit");
                             self.add_habit(Box::new(Float::new(name, v, p)));
                         }
                         _ => {
