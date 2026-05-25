@@ -40,14 +40,18 @@ impl FloatData {
 
 impl fmt::Display for FloatData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let characteristic = self.value / (10 * self.precision as u32);
-        let mantissa = self.value % (10 * self.precision as u32);
-        let s = if characteristic == 0 {
-            format!(".{mantissa}")
+        let scale = 10u32.pow(self.precision as u32);
+        let characteristic = self.value / scale;
+        let mantissa = self.value % scale;
+        let width = self.precision as usize;
+        let s = if self.precision == 0 {
+            format!("{characteristic}")
+        } else if characteristic == 0 {
+            format!(".{mantissa:0width$}")
         } else if mantissa == 0 {
             format!("{characteristic}")
         } else {
-            format!("{characteristic}.{mantissa}")
+            format!("{characteristic}.{mantissa:0width$}")
         };
         write!(f, "{s:^3}")
     }
