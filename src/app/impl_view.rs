@@ -98,7 +98,8 @@ impl View for App {
                     ViewMode::Day => ViewMode::Week,
                     ViewMode::Week => ViewMode::Month,
                     ViewMode::Month => ViewMode::Year,
-                    ViewMode::Year => ViewMode::Day,
+                    ViewMode::Year => ViewMode::Stats,
+                    ViewMode::Stats => ViewMode::Day,
                 };
                 for habit in self.habits.iter_mut() {
                     habit.inner_data_mut_ref().set_view_mode(next);

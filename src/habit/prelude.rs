@@ -14,6 +14,7 @@ pub enum ViewMode {
     Week,
     Month,
     Year,
+    Stats,
 }
 
 impl fmt::Display for ViewMode {
@@ -23,6 +24,7 @@ impl fmt::Display for ViewMode {
             ViewMode::Week => write!(f, "WEEK"),
             ViewMode::Month => write!(f, "MONTH"),
             ViewMode::Year => write!(f, "YEAR"),
+            ViewMode::Stats => write!(f, "STATS"),
         }
     }
 }
