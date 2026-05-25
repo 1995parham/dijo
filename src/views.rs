@@ -71,7 +71,9 @@ where
                 let remaining = week.iter().map(|&i| self.remaining(i)).sum::<u32>();
                 let completions = weekly_goal - remaining;
                 let full = VIEW_WIDTH - 8;
-                let bars_to_fill = (completions * full as u32).checked_div(weekly_goal).unwrap_or(0);
+                let bars_to_fill = (completions * full as u32)
+                    .checked_div(weekly_goal)
+                    .unwrap_or(0);
                 let percentage = if weekly_goal > 0 {
                     (completions as f64 * 100.) / weekly_goal as f64
                 } else {
