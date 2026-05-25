@@ -71,11 +71,7 @@ where
                 let remaining = week.iter().map(|&i| self.remaining(i)).sum::<u32>();
                 let completions = weekly_goal - remaining;
                 let full = VIEW_WIDTH - 8;
-                let bars_to_fill = if weekly_goal > 0 {
-                    (completions * full as u32) / weekly_goal
-                } else {
-                    0
-                };
+                let bars_to_fill = (completions * full as u32).checked_div(weekly_goal).unwrap_or(0);
                 let percentage = if weekly_goal > 0 {
                     (completions as f64 * 100.) / weekly_goal as f64
                 } else {
@@ -173,7 +169,7 @@ where
                         p.print(coords, &format!("{month_name}  --"));
                     });
                 } else {
-                    let pct = (reached_days * 100) / total_days;
+                    let pct = (reached_days * 100).checked_div(total_days).unwrap_or(0);
                     let style = if reached_days >= total_days {
                         goal_reached_style
                     } else if reached_days > 0 {
@@ -216,11 +212,7 @@ where
                 } else {
                     0
                 };
-                let pct = if total_days > 0 {
-                    (reached_days * 100) / total_days
-                } else {
-                    0
-                };
+                let pct = (reached_days * 100).checked_div(total_days).unwrap_or(0);
 
                 printer.with_style(future_style, |p| {
                     p.print((0, line), &format!("{y}"));
