@@ -297,7 +297,10 @@ where
             let lines = [
                 format!("Current  {current:>4} days"),
                 format!("Longest  {longest:>4} days"),
-                format!("Done     {total:>4} time{}", if total == 1 { "" } else { "s" }),
+                format!(
+                    "Done     {total:>4} time{}",
+                    if total == 1 { "" } else { "s" }
+                ),
                 format!("Rate     {rate:>4} %"),
             ];
             for (i, line) in lines.iter().enumerate() {
