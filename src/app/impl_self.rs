@@ -198,7 +198,9 @@ impl App {
         const WEEKS: u64 = 53;
         const GUTTER: usize = 4; // width of the weekday-label column
         let weekday_off = today.weekday().num_days_from_monday() as u64;
-        let anchor_monday = today.checked_sub_days(Days::new(weekday_off)).unwrap_or(today);
+        let anchor_monday = today
+            .checked_sub_days(Days::new(weekday_off))
+            .unwrap_or(today);
         let start_monday = anchor_monday
             .checked_sub_days(Days::new((WEEKS - 1) * 7))
             .unwrap_or(anchor_monday);
@@ -563,7 +565,9 @@ mod tests {
         Habit::insert_entry(&mut habit, Local::now().date_naive(), 1);
         app.add_habit(Box::new(habit));
 
-        let (name, body) = app.focused_dashboard().expect("dashboard for focused habit");
+        let (name, body) = app
+            .focused_dashboard()
+            .expect("dashboard for focused habit");
         assert_eq!(name, "read");
         // header, stats and legend are all present in the rendered body
         assert!(body.source().contains("current streak"));
