@@ -1,4 +1,4 @@
-.TH DIJO 1 "August 29, 2025" dijo-0.4.6
+.TH DIJO 1 "June 28, 2026" dijo-1.2.0
 
 .SH NAME
 dijo \- digital journal
@@ -74,9 +74,13 @@ To track your progress for the day:
 .IP
 \(bu Once you reach your daily goal, the day is marked in green and the habit name is struck through with a line.
 .PP
-Check your weekly progress for a given habit by pressing \fBv\fR on the keyboard, this is \fBWEEK\fR mode, and press \fB<ESC>\fR to go back to \fBDAY\fR mode. \fB<Shift-v>\fR is a shortcut to display weekly progress for every habit. The current mode is indicated on the status line.
+Cycle the display for every habit by pressing \fBv\fR on the keyboard. This steps through \fBDAY\fR, \fBWEEK\fR, \fBMONTH\fR, \fBYEAR\fR, \fBSTATS\fR and \fBHEATMAP\fR modes; press \fB<ESC>\fR to return to \fBDAY\fR mode and reset the cursor. The current mode is indicated on the status line.
+.PP
+\fBHEATMAP\fR mode draws a GitHub-style contribution grid (seven weekday rows by a band of trailing weeks) for each habit, shaded by completion. The rightmost column tracks the currently viewed week, so sifting months scrolls the heatmap through history.
 .PP
 Review your progress for previous months by pressing \fB[\fR on the keyboard, sift through months with \fB[\fR and \fB]\fR.
+.PP
+Press \fBd\fR (or run the \fB:dashboard\fR command) to open a full-screen dashboard for the focused habit: its all-time stats and a labelled, year-long contribution heatmap. Dismiss it with \fBq\fR or \fB<ESC>\fR.
 
 .SH CUSTOMIZATION
 .PP

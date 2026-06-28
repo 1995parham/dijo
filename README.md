@@ -12,8 +12,13 @@ much like a certain text editor.
 ### Features
 
 - **Vim like motions**: navigate `dijo` with `hjkl`!
-- **`dijo` is modal**: different modes to view different
-  stats!
+- **`dijo` is modal**: cycle a habit through `DAY`, `WEEK`,
+  `MONTH`, `YEAR`, `STATS` and `HEATMAP` views with `v`!
+- **Contribution heatmap**: a GitHub-style grid of your
+  streaks, right in the terminal.
+- **Full-screen dashboard**: press `d` for an at-a-glance
+  summary of the focused habit — all-time stats and a
+  year-long heatmap.
 - **Vim like command mode**: add with `:add`, delete with
   `:delete` and above all, quit with `:q`!.
 - **Fully scriptable**
@@ -21,15 +26,14 @@ much like a certain text editor.
 ### Install
 
 To get the latest release of `dijo`, prefer installing it
-via `cargo`. Unofficial packages exist for some package
-managers as well. You can also browse the
-[Releases](https://github.com/NerdyPepper/dijo/releases)
-page for prebuilt binaries.
+via `cargo`. You can also browse the
+[Releases](https://github.com/1995parham/dijo/releases)
+page for prebuilt binaries (Linux, macOS and Windows).
 
 #### Cargo
 
 ```shell
-# dijo requires rustc >= v1.42
+# dijo is built with the Rust 2024 edition; use a recent stable toolchain
 $ rustup update
 
 $ cargo install dijo
@@ -37,13 +41,44 @@ $ cargo install dijo
 
 ### Usage
 
-`dijo` has a [detailed
-wiki](https://github.com/NerdyPepper/dijo/wiki/), here are
-some good places to start out:
+Run `dijo` to open the grid of habits. The bundled man page
+([`dijo.1`](./dijo.1)) covers everything in detail; here is the
+short version.
 
-- [Getting started](https://github.com/NerdyPepper/dijo/wiki/Getting-Started)
-- [Automatically tracking habits](https://github.com/NerdyPepper/dijo/wiki/Auto-Habits)
-- [Command reference](https://github.com/NerdyPepper/dijo/wiki/Commands)
+#### Views
+
+Press `v` to cycle the view for every habit; `Esc` returns to
+`DAY` and resets the cursor.
+
+| View      | Shows                                                       |
+| --------- | ---------------------------------------------------------- |
+| `DAY`     | every day of the month as a grid                           |
+| `WEEK`    | weekly completion bars                                      |
+| `MONTH`   | per-month completion for the year                          |
+| `YEAR`    | per-year completion bars                                    |
+| `STATS`   | current/longest streak, total completions, completion rate |
+| `HEATMAP` | a contribution grid of trailing weeks (`[` `]` to scroll)  |
+
+#### Keybindings
+
+| Key             | Action                                  |
+| --------------- | --------------------------------------- |
+| `h` `j` `k` `l` | move focus between habits               |
+| `H` `J` `K` `L` | move the day cursor                     |
+| `n` / `Enter`   | increment today (`+1`)                  |
+| `p` / `Backspace` | decrement today (`-1`)                |
+| `v`             | cycle the view mode                     |
+| `d`             | open the focused habit's dashboard      |
+| `[` `]`         | sift to the previous / next month       |
+| `Esc`           | reset view and cursor                   |
+| `:`             | enter command mode                      |
+
+#### Commands
+
+`:add <name> [goal]`, `:delete <name>`, `:month-prev` / `:mprev`,
+`:month-next` / `:mnext`, `:archive`, `:dashboard` / `:dash`,
+`:write` / `:w`, `:quit` / `:q`, `:writeandquit` / `:wq`,
+`:help [<command>|commands|keys]`.
 
 ## Design Notes
 
