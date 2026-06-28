@@ -4,12 +4,11 @@ use cursive::theme::{ColorStyle, Effect, Style};
 use cursive::view::{CannotFocus, View};
 use cursive::{Printer, Vec2};
 
-use std::collections::HashSet;
-
 use chrono::prelude::*;
 use chrono::{Local, NaiveDate};
 
 use crate::habit::{Bit, Count, Float, Habit, TrackEvent, ViewMode};
+use crate::stats::habit_stats;
 use crate::theme::cursor_bg;
 use crate::utils::{VIEW_HEIGHT, VIEW_WIDTH};
 
@@ -239,72 +238,27 @@ where
 
             // every day this habit reached its goal, including months that
             // have since been archived out of the live record
-            let mut reached: Vec<NaiveDate> = self
+            let reached: Vec<NaiveDate> = self
                 .get_dates()
                 .into_iter()
                 .filter(|&d| self.reached_goal(d))
                 .chain(archived.iter().copied())
                 .collect();
-            reached.sort_unstable();
-            reached.dedup();
 
-            let total = reached.len() as u32;
-            let reached_set: HashSet<NaiveDate> = reached.iter().copied().collect();
-
-            // longest run of consecutive reached days
-            let mut longest = 0u32;
-            let mut run = 0u32;
-            let mut prev: Option<NaiveDate> = None;
-            for &d in &reached {
-                run = match prev {
-                    Some(p) if p.succ_opt() == Some(d) => run + 1,
-                    _ => 1,
-                };
-                longest = longest.max(run);
-                prev = Some(d);
-            }
-
-            // current streak: count back from today, tolerating a still-open
-            // today (start from yesterday if today isn't done yet)
-            let mut current = 0u32;
-            let mut day = if reached_set.contains(&today) {
-                Some(today)
-            } else {
-                today.pred_opt()
-            };
-            while let Some(d) = day {
-                if reached_set.contains(&d) {
-                    current += 1;
-                    day = d.pred_opt();
-                } else {
-                    break;
-                }
-            }
-
-            // completion rate over the span since the first reached day
-            let rate = match reached.first() {
-                Some(&first) => {
-                    let span = (today - first).num_days() + 1;
-                    if span > 0 {
-                        (total as i64 * 100 / span) as u32
-                    } else {
-                        0
-                    }
-                }
-                None => 0,
-            };
+            let s = habit_stats(&reached, today);
 
             let lines = [
-                format!("Current  {current:>4} days"),
-                format!("Longest  {longest:>4} days"),
+                format!("Current  {:>4} days", s.current_streak),
+                format!("Longest  {:>4} days", s.longest_streak),
                 format!(
-                    "Done     {total:>4} time{}",
-                    if total == 1 { "" } else { "s" }
+                    "Done     {:>4} time{}",
+                    s.total,
+                    if s.total == 1 { "" } else { "s" }
                 ),
-                format!("Rate     {rate:>4} %"),
+                format!("Rate     {:>4} %", s.completion_rate),
             ];
             for (i, line) in lines.iter().enumerate() {
-                let style = if i == 0 && current > 0 {
+                let style = if i == 0 && s.current_streak > 0 {
                     goal_reached_style
                 } else {
                     Style::none()

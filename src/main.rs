@@ -1,6 +1,7 @@
 mod app;
 mod command;
 mod habit;
+mod stats;
 mod theme;
 mod utils;
 mod views;
