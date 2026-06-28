@@ -87,6 +87,9 @@ impl App {
     }
 
     pub fn set_focus(&mut self, d: Absolute) {
+        if self.habits.is_empty() {
+            return;
+        }
         match d {
             Absolute::Right => {
                 if self.focus != self.habits.len() - 1 {
