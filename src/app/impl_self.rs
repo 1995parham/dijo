@@ -1,14 +1,18 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
 
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, Days, Local, NaiveDate};
 use cursive::Vec2;
 use cursive::direction::Absolute;
+use cursive::theme::Style;
+use cursive::utils::markup::StyledString;
 
+use crate::CONFIGURATION;
 use crate::command::{Command, CommandLineError, GoalKind};
 use crate::habit::{Bit, Count, Float, HabitWrapper, ViewMode};
+use crate::stats::habit_stats;
 use crate::utils::{self, GRID_WIDTH, VIEW_HEIGHT, VIEW_WIDTH};
 
 use crate::app::{App, Cursor, Message, MessageKind, StatusLine};
@@ -146,6 +150,116 @@ impl App {
             ),
             timestamp,
         )
+    }
+
+    /// Build a full-screen dashboard for the currently focused habit: a header,
+    /// all-time stats, and a labelled year-long contribution heatmap. Returns
+    /// the habit name (for the dialog title) and the rendered body, or `None`
+    /// when there are no habits.
+    pub fn focused_dashboard(&self) -> Option<(String, StyledString)> {
+        let habit = self.habits.get(self.focus)?;
+        let today = Local::now().date_naive();
+
+        let reached_style = Style::from(CONFIGURATION.reached_color());
+        let todo_style = Style::from(CONFIGURATION.todo_color());
+        let inactive_style = Style::from(CONFIGURATION.inactive_color());
+
+        let goal = habit.goal();
+        let dates_set: HashSet<NaiveDate> = habit.get_dates().into_iter().collect();
+        let archived = &habit.inner_data_ref().archived_reached;
+
+        // A day counts as reached if it has an entry that meets the goal (i.e.
+        // nothing remaining), or it was reached in a now-archived month.
+        let is_reached = |d: NaiveDate| -> bool {
+            (dates_set.contains(&d) && habit.remaining(d) == 0) || archived.contains(&d)
+        };
+
+        // ---- all-time stats ----
+        let reached_dates: Vec<NaiveDate> = dates_set
+            .iter()
+            .copied()
+            .filter(|&d| habit.remaining(d) == 0)
+            .chain(archived.iter().copied())
+            .collect();
+        let s = habit_stats(&reached_dates, today);
+
+        let mut out = StyledString::new();
+        out.append_plain(format!("goal: {goal} per day\n\n"));
+        out.append_plain(format!("  current streak   {:>4} days\n", s.current_streak));
+        out.append_plain(format!("  longest streak   {:>4} days\n", s.longest_streak));
+        out.append_plain(format!(
+            "  completed        {:>4} time{}\n",
+            s.total,
+            if s.total == 1 { "" } else { "s" }
+        ));
+        out.append_plain(format!("  completion rate  {:>4} %\n\n", s.completion_rate));
+
+        // ---- trailing-year heatmap ----
+        const WEEKS: u64 = 53;
+        const GUTTER: usize = 4; // width of the weekday-label column
+        let weekday_off = today.weekday().num_days_from_monday() as u64;
+        let anchor_monday = today.checked_sub_days(Days::new(weekday_off)).unwrap_or(today);
+        let start_monday = anchor_monday
+            .checked_sub_days(Days::new((WEEKS - 1) * 7))
+            .unwrap_or(anchor_monday);
+
+        let week_monday = |w: u64| {
+            start_monday
+                .checked_add_days(Days::new(w * 7))
+                .unwrap_or(start_monday)
+        };
+
+        // month-label row: drop each month's abbreviation at the column where
+        // that month first appears
+        let mut label = " ".repeat(GUTTER);
+        let mut prev_month = 0u32;
+        for w in 0..WEEKS {
+            let m = week_monday(w).month();
+            if m != prev_month {
+                let pos = GUTTER + w as usize;
+                if label.len() < pos {
+                    label.push_str(&" ".repeat(pos - label.len()));
+                }
+                label.truncate(pos);
+                label.push_str(month_abbr(m));
+                prev_month = m;
+            }
+        }
+        out.append_plain(format!("{label}\n"));
+
+        let weekday_labels = ["Mon", "   ", "Wed", "   ", "Fri", "   ", "Sun"];
+        for row in 0..7u64 {
+            out.append_plain(format!("{} ", weekday_labels[row as usize]));
+            for w in 0..WEEKS {
+                let date = week_monday(w)
+                    .checked_add_days(Days::new(row))
+                    .unwrap_or(start_monday);
+                if date > today || date < start_monday {
+                    out.append_plain(" ");
+                    continue;
+                }
+                let (glyph, style) = if is_reached(date) {
+                    ("█", reached_style)
+                } else if goal > 0 && habit.remaining(date) < goal {
+                    ("▒", todo_style) // some progress, goal not met
+                } else {
+                    ("░", inactive_style) // missed or no data
+                };
+                out.append_styled(glyph, style);
+            }
+            out.append_plain("\n");
+        }
+
+        // ---- legend ----
+        out.append_plain("\n  ");
+        out.append_styled("█", reached_style);
+        out.append_plain(" done   ");
+        out.append_styled("▒", todo_style);
+        out.append_plain(" partial   ");
+        out.append_styled("░", inactive_style);
+        out.append_plain(" missed");
+
+        Some((habit.name().to_owned(), out))
     }
 
     pub fn max_size(&self) -> Vec2 {
@@ -383,11 +497,12 @@ impl App {
                                 "mprev" | "month-prev" => "month-prev     (alias: mprev)",
                                 "mnext" | "month-next" => "month-next     (alias: mnext)",
                                 "archive" => "archive old months to separate files",
+                                "dashboard" | "dash" => "open the focused habit's dashboard     (alias: dash, key: d)",
                                 "q"     | "quit" => "quit dijo",
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",
-                                "cmds"  | "commands" => "add, delete, month-{prev,next}, archive, help, quit",
-                                "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/year/stats/heatmap) | []: month | Esc: reset",
+                                "cmds"  | "commands" => "add, delete, month-{prev,next}, archive, dashboard, help, quit",
+                                "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/year/stats/heatmap) | d: dashboard | []: month | Esc: reset",
                                 "wq" =>   "write current state to disk and quit dijo",
                                 _ => "unknown command or help topic.",
                             }
@@ -411,6 +526,9 @@ impl App {
                         self.message.set_message(e);
                     }
                 }
+                // opening the dashboard needs access to the Cursive root, so it
+                // is handled in command::call_on_app, not here.
+                Command::Dashboard => {}
                 Command::Blank => {}
             },
             Err(e) => {
@@ -418,5 +536,45 @@ impl App {
                 self.message.set_kind(MessageKind::Error);
             }
         }
+    }
+}
+
+fn month_abbr(month: u32) -> &'static str {
+    const NAMES: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    NAMES.get((month as usize).wrapping_sub(1)).unwrap_or(&"")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::habit::{Count, Habit};
+
+    #[test]
+    fn dashboard_is_none_without_habits() {
+        assert!(App::new().focused_dashboard().is_none());
+    }
+
+    #[test]
+    fn dashboard_renders_for_focused_habit() {
+        let mut app = App::new();
+        let mut habit = Count::new("read", 1);
+        Habit::insert_entry(&mut habit, Local::now().date_naive(), 1);
+        app.add_habit(Box::new(habit));
+
+        let (name, body) = app.focused_dashboard().expect("dashboard for focused habit");
+        assert_eq!(name, "read");
+        // header, stats and legend are all present in the rendered body
+        assert!(body.source().contains("current streak"));
+        assert!(body.source().contains("completion rate"));
+    }
+
+    #[test]
+    fn month_abbr_is_one_based_and_bounded() {
+        assert_eq!(month_abbr(1), "Jan");
+        assert_eq!(month_abbr(12), "Dec");
+        assert_eq!(month_abbr(0), "");
+        assert_eq!(month_abbr(13), "");
     }
 }

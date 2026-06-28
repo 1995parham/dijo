@@ -5,7 +5,7 @@ use cursive::Cursive;
 use cursive::event::{Event, EventResult, Key};
 use cursive::theme::{BaseColor, Color, ColorStyle};
 use cursive::view::Resizable;
-use cursive::views::{EditView, LinearLayout, OnEventView, TextView};
+use cursive::views::{Dialog, EditView, LinearLayout, OnEventView, TextView};
 
 use crate::app::App;
 use crate::utils::{GRID_WIDTH, VIEW_WIDTH};
@@ -20,6 +20,7 @@ static COMMANDS: &[&str] = &[
     "help",
     "writeandquit",
     "archive",
+    "dashboard",
 ];
 
 fn get_command_completion(prefix: &str) -> Option<String> {
@@ -98,8 +99,34 @@ fn call_on_app(s: &mut Cursive, input: &str) {
     // TODO: fix this somehow
     match input.parse::<Command>() {
         Ok(Command::Quit) | Ok(Command::WriteAndQuit) => s.quit(),
+        Ok(Command::Dashboard) => open_dashboard(s),
         _ => {}
     }
+}
+
+/// Open a full-screen dashboard overlay for the currently focused habit.
+/// Dismissed with `q` or `Esc`.
+pub fn open_dashboard(s: &mut Cursive) {
+    let dashboard = s
+        .call_on_name("Main", |view: &mut App| view.focused_dashboard())
+        .flatten();
+    let Some((name, body)) = dashboard else {
+        return;
+    };
+
+    let dialog = Dialog::around(TextView::new(body))
+        .title(name)
+        .button("close", |s| {
+            s.pop_layer();
+        });
+    let view = OnEventView::new(dialog)
+        .on_event(Event::Key(Key::Esc), |s| {
+            s.pop_layer();
+        })
+        .on_event('q', |s| {
+            s.pop_layer();
+        });
+    s.add_layer(view);
 }
 
 #[derive(Debug, PartialEq)]
@@ -152,6 +179,7 @@ pub enum Command {
     Blank,
     WriteAndQuit,
     Archive,
+    Dashboard,
 }
 
 #[derive(Debug)]
@@ -218,6 +246,7 @@ impl FromStr for Command {
             "q" | "quit" => Ok(Command::Quit),
             "w" | "write" => Ok(Command::Write),
             "archive" => Ok(Command::Archive),
+            "dashboard" | "dash" => Ok(Command::Dashboard),
             "" => Ok(Command::Blank),
             s => Err(CommandLineError::InvalidCommand(s.into())),
         }
