@@ -161,20 +161,23 @@ impl App {
         Vec2::new(width, height + 2)
     }
 
-    pub fn load_state() -> Self {
-        let regular_f = utils::habit_file();
-        let read_from_file = |file: PathBuf| -> Vec<Box<dyn HabitWrapper>> {
-            if let Ok(ref mut f) = File::open(file) {
-                let mut j = String::new();
-                f.read_to_string(&mut j)
-                    .unwrap_or_else(|e| panic!("Failed to read habit file: `{e}`"));
-                serde_json::from_str(&j).unwrap()
-            } else {
-                Vec::new()
+    pub fn load_state() -> Result<Self, String> {
+        let regular_f = utils::habit_file()?;
+        let read_from_file = |file: PathBuf| -> Result<Vec<Box<dyn HabitWrapper>>, String> {
+            match File::open(file) {
+                Ok(ref mut f) => {
+                    let mut j = String::new();
+                    f.read_to_string(&mut j)
+                        .map_err(|e| format!("Failed to read habit file: `{e}`"))?;
+                    serde_json::from_str(&j)
+                        .map_err(|e| format!("Failed to parse habit file: `{e}`"))
+                }
+                // No file yet: a fresh start, not an error.
+                Err(_) => Ok(Vec::new()),
             }
         };
 
-        let mut regular = read_from_file(regular_f);
+        let mut regular = read_from_file(regular_f)?;
 
         let archived = utils::load_archived_reached_goals();
         for habit in regular.iter_mut() {
@@ -183,34 +186,41 @@ impl App {
             }
         }
 
-        App {
+        Ok(App {
             habits: regular,
             ..Default::default()
-        }
+        })
     }
 
-    // this function does IO
-    // TODO: convert this into non-blocking async function
-    pub fn save_state(&self) {
+    pub fn save_state(&self) -> Result<(), String> {
         let regular: Vec<_> = self.habits.iter().collect();
-        let regular_f = utils::habit_file();
+        let file = utils::habit_file()?;
 
-        let write_to_file = |data: Vec<&Box<dyn HabitWrapper>>, file: PathBuf| {
-            let mut o = serde_json::json!(data);
-            o.sort_all_objects();
-            let j = serde_json::to_string_pretty(&o).unwrap();
-            match OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(file)
-            {
-                Ok(ref mut f) => f.write_all(j.as_bytes()).unwrap(),
-                Err(_) => panic!("Unable to write!"),
-            };
-        };
+        let mut o = serde_json::json!(regular);
+        o.sort_all_objects();
+        let j = serde_json::to_string_pretty(&o)
+            .map_err(|e| format!("could not serialize habits: {e}"))?;
 
-        write_to_file(regular, regular_f);
+        // Write to a sibling temp file, then atomically rename it over the
+        // target. A crash mid-write leaves the original file untouched instead
+        // of truncated.
+        let file_name = file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("habit_record.json");
+        let tmp = file.with_file_name(format!("{file_name}.tmp"));
+
+        let mut f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&tmp)
+            .map_err(|e| format!("could not open habit file for writing: {e}"))?;
+        f.write_all(j.as_bytes())
+            .map_err(|e| format!("could not write habit file: {e}"))?;
+        std::fs::rename(&tmp, &file).map_err(|e| format!("could not save habit file: {e}"))?;
+
+        Ok(())
     }
 
     pub fn archive_habits(&mut self) {
@@ -281,7 +291,14 @@ impl App {
         }
 
         // Write archived habits to files
-        let archive_path = utils::archive_dir();
+        let archive_path = match utils::archive_dir() {
+            Ok(p) => p,
+            Err(e) => {
+                self.message.set_kind(MessageKind::Error);
+                self.message.set_message(e);
+                return;
+            }
+        };
         let mut archived_count = 0;
 
         for ((month, year), habits) in habits_by_month.iter() {
@@ -379,12 +396,20 @@ impl App {
                         self.message.set_message("help <command>|commands|keys")
                     }
                 }
-                Command::Quit | Command::Write | Command::WriteAndQuit => self.save_state(),
+                Command::Quit | Command::Write | Command::WriteAndQuit => {
+                    if let Err(e) = self.save_state() {
+                        self.message.set_kind(MessageKind::Error);
+                        self.message.set_message(e);
+                    }
+                }
                 Command::MonthNext => self.sift_forward(),
                 Command::MonthPrev => self.sift_backward(),
                 Command::Archive => {
                     self.archive_habits();
-                    self.save_state();
+                    if let Err(e) = self.save_state() {
+                        self.message.set_kind(MessageKind::Error);
+                        self.message.set_message(e);
+                    }
                 }
                 Command::Blank => {}
             },

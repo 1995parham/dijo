@@ -90,67 +90,76 @@ impl AppConfig {
     }
 }
 
+/// Load the user config, falling back to defaults on any problem.
+///
+/// Config is non-essential and accessed during rendering, so a missing,
+/// unreadable, or malformed file must never crash the app — we just use the
+/// built-in defaults. A missing file is seeded with the defaults (best effort).
 pub fn load_configuration_file() -> AppConfig {
-    let cf = config_file();
-    if let Ok(ref mut f) = File::open(&cf) {
-        let mut j = String::new();
-        f.read_to_string(&mut j)
-            .unwrap_or_else(|e| panic!("Failed to read config file: `{e}`"));
-        toml::from_str(&j).unwrap_or_else(|e| panic!("Invalid config file: `{e}`"))
-    } else {
-        if let Ok(dc) = toml::to_string(&AppConfig::default()) {
-            match OpenOptions::new()
-                .create(true)
-                .truncate(true)
-                .write(true)
-                .open(&cf)
-            {
-                Ok(ref mut file) => {
-                    file.write_all(dc.as_bytes()).unwrap();
-                }
-                Err(_) => panic!("Unable to write config file to disk!"),
-            };
+    let Ok(cf) = config_file() else {
+        return AppConfig::default();
+    };
+
+    match File::open(&cf) {
+        Ok(ref mut f) => {
+            let mut j = String::new();
+            if f.read_to_string(&mut j).is_err() {
+                return AppConfig::default();
+            }
+            // A malformed config falls back to defaults rather than crashing.
+            toml::from_str(&j).unwrap_or_default()
         }
-        Default::default()
+        Err(_) => {
+            // No config yet: seed the file with defaults (best effort).
+            if let Ok(dc) = toml::to_string(&AppConfig::default())
+                && let Ok(ref mut file) = OpenOptions::new()
+                    .create(true)
+                    .truncate(true)
+                    .write(true)
+                    .open(&cf)
+            {
+                let _ = file.write_all(dc.as_bytes());
+            }
+            AppConfig::default()
+        }
     }
 }
 
-fn project_dirs() -> ProjectDirs {
+fn project_dirs() -> Result<ProjectDirs, String> {
     ProjectDirs::from("rs", "nerdypepper", "dijo")
-        .unwrap_or_else(|| panic!("Invalid home directory!"))
+        .ok_or_else(|| "could not determine a home directory".to_string())
 }
 
-pub fn config_file() -> PathBuf {
-    let proj_dirs = project_dirs();
-    let mut data_file = PathBuf::from(proj_dirs.config_dir());
-    fs::create_dir_all(&data_file).unwrap_or_else(|e| panic!("Failed to create config dir: `{e}`"));
-    data_file.push("config.toml");
-    data_file
+pub fn config_file() -> Result<PathBuf, String> {
+    let proj_dirs = project_dirs()?;
+    let dir = proj_dirs.config_dir();
+    fs::create_dir_all(dir).map_err(|e| format!("could not create config dir: {e}"))?;
+    Ok(dir.join("config.toml"))
 }
 
-pub fn habit_file() -> PathBuf {
-    let proj_dirs = project_dirs();
-    let mut data_file = PathBuf::from(proj_dirs.data_dir());
-    fs::create_dir_all(&data_file).unwrap_or_else(|e| panic!("Failed to create data dir: `{e}`"));
-    data_file.push("habit_record.json");
-    data_file
+pub fn habit_file() -> Result<PathBuf, String> {
+    let proj_dirs = project_dirs()?;
+    let dir = proj_dirs.data_dir();
+    fs::create_dir_all(dir).map_err(|e| format!("could not create data dir: {e}"))?;
+    Ok(dir.join("habit_record.json"))
 }
 
-pub fn archive_dir() -> PathBuf {
-    let proj_dirs = project_dirs();
-    let mut archive_path = PathBuf::from(proj_dirs.data_dir());
-    archive_path.push("archive");
-    fs::create_dir_all(&archive_path)
-        .unwrap_or_else(|e| panic!("Failed to create archive dir: `{e}`"));
-    archive_path
+pub fn archive_dir() -> Result<PathBuf, String> {
+    let proj_dirs = project_dirs()?;
+    let archive_path = proj_dirs.data_dir().join("archive");
+    fs::create_dir_all(&archive_path).map_err(|e| format!("could not create archive dir: {e}"))?;
+    Ok(archive_path)
 }
 
 /// Scan archive files and return reached-goal dates grouped by habit name.
 /// Archive files are `{month}_{year}.json` containing arrays of serialized habits.
 /// Each habit has "name", "goal", and "stats" fields.
 pub fn load_archived_reached_goals() -> HashMap<String, HashSet<NaiveDate>> {
-    let archive_path = archive_dir();
     let mut result: HashMap<String, HashSet<NaiveDate>> = HashMap::new();
+    let archive_path = match archive_dir() {
+        Ok(p) => p,
+        Err(_) => return result,
+    };
 
     let entries = match fs::read_dir(&archive_path) {
         Ok(e) => e,

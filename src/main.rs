@@ -50,19 +50,26 @@ fn main() {
         )
         .get_matches();
 
+    let load_state = || {
+        App::load_state().unwrap_or_else(|e| {
+            eprintln!("dijo: {e}");
+            std::process::exit(1);
+        })
+    };
+
     if matches.get_flag("list") {
-        for h in App::load_state().list_habits() {
+        for h in load_state().list_habits() {
             println!("{h}");
         }
     } else if let Some(habit) = matches.get_one::<String>("missing") {
         println!("forgot to fill {habit} on:\n");
-        for h in App::load_state().missed_habits_by_name(habit) {
+        for h in load_state().missed_habits_by_name(habit) {
             println!("{h}");
         }
     } else {
         let mut s = Cursive::new();
 
-        let app = App::load_state();
+        let app = load_state();
         let layout = NamedView::new(
             "Frame",
             LinearLayout::vertical().child(NamedView::new("Main", app)),
@@ -73,6 +80,10 @@ fn main() {
         s.set_theme(theme::theme_gen());
         s.run();
 
-        s.call_on_name("Main", |app: &mut App| app.save_state());
+        let save_result = s.call_on_name("Main", |app: &mut App| app.save_state());
+        if let Some(Err(e)) = save_result {
+            eprintln!("dijo: {e}");
+            std::process::exit(1);
+        }
     }
 }
