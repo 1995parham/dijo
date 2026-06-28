@@ -15,6 +15,7 @@ pub enum ViewMode {
     Month,
     Year,
     Stats,
+    Heatmap,
 }
 
 impl fmt::Display for ViewMode {
@@ -25,6 +26,7 @@ impl fmt::Display for ViewMode {
             ViewMode::Month => write!(f, "MONTH"),
             ViewMode::Year => write!(f, "YEAR"),
             ViewMode::Stats => write!(f, "STATS"),
+            ViewMode::Heatmap => write!(f, "HEATMAP"),
         }
     }
 }

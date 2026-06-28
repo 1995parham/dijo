@@ -5,7 +5,7 @@ use cursive::view::{CannotFocus, View};
 use cursive::{Printer, Vec2};
 
 use chrono::prelude::*;
-use chrono::{Local, NaiveDate};
+use chrono::{Days, Local, NaiveDate};
 
 use crate::habit::{Bit, Count, Float, Habit, TrackEvent, ViewMode};
 use crate::stats::habit_stats;
@@ -267,12 +267,52 @@ where
             }
         };
 
+        // GitHub-style contribution grid: 7 weekday rows (Mon..Sun) by a band of
+        // trailing weeks. The rightmost column is the week containing the viewed
+        // date, so sifting months with [ ] scrolls the heatmap through history.
+        let draw_heatmap = |printer: &Printer| {
+            let today = Local::now().date_naive();
+            let todo_style = Style::from(CONFIGURATION.todo_color());
+
+            const COLS: u64 = VIEW_WIDTH as u64;
+            const ROWS: u64 = 7;
+
+            let weekday_off = now.weekday().num_days_from_monday() as u64;
+            let anchor_monday = now.checked_sub_days(Days::new(weekday_off)).unwrap_or(now);
+
+            for col in 0..COLS {
+                let weeks_back = COLS - 1 - col;
+                let week_monday = anchor_monday
+                    .checked_sub_days(Days::new(weeks_back * 7))
+                    .unwrap_or(anchor_monday);
+                for row in 0..ROWS {
+                    let date = match week_monday.checked_add_days(Days::new(row)) {
+                        Some(d) => d,
+                        None => continue,
+                    };
+                    if date > today {
+                        continue; // leave future days blank
+                    }
+                    let coords: Vec2 = (col as usize, row as usize + 1).into();
+                    let (style, glyph): (Style, &str) = if reached_or_archived(date) {
+                        (goal_reached_style, "█")
+                    } else if self.goal() > 0 && self.remaining(date) < self.goal() {
+                        (todo_style, "▒") // some progress, goal not met
+                    } else {
+                        (future_style, "░") // missed or no data
+                    };
+                    printer.with_style(style, |p| p.print(coords, glyph));
+                }
+            }
+        };
+
         match self.inner_data_ref().view_mode() {
             ViewMode::Day => draw_day(printer),
             ViewMode::Week => draw_week(printer),
             ViewMode::Month => draw_month(printer),
             ViewMode::Year => draw_year(printer),
             ViewMode::Stats => draw_stats(printer),
+            ViewMode::Heatmap => draw_heatmap(printer),
         };
     }
 
