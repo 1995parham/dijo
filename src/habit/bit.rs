@@ -35,6 +35,8 @@ impl From<bool> for CustomBool {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Bit {
     name: String,
+    #[serde(default)]
+    description: String,
     stats: HashMap<NaiveDate, CustomBool>,
     goal: CustomBool,
 
@@ -46,6 +48,7 @@ impl Bit {
     pub fn new(name: impl AsRef<str>) -> Self {
         Bit {
             name: name.as_ref().to_owned(),
+            description: String::new(),
             stats: HashMap::new(),
             goal: CustomBool(true),
             inner_data: Default::default(),
@@ -57,6 +60,12 @@ impl Habit for Bit {
     type HabitType = CustomBool;
     fn name(&self) -> &str {
         &self.name
+    }
+    fn description(&self) -> &str {
+        &self.description
+    }
+    fn set_description(&mut self, description: String) {
+        self.description = description;
     }
     fn kind(&self) -> GoalKind {
         GoalKind::Bit

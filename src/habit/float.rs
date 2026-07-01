@@ -81,6 +81,8 @@ impl Sub for FloatData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Float {
     name: String,
+    #[serde(default)]
+    description: String,
     stats: HashMap<NaiveDate, FloatData>,
     goal: FloatData,
     precision: u8,
@@ -93,6 +95,7 @@ impl Float {
     pub fn new(name: impl AsRef<str>, goal: u32, precision: u8) -> Self {
         Float {
             name: name.as_ref().to_owned(),
+            description: String::new(),
             stats: HashMap::new(),
             goal: FloatData {
                 value: goal,
@@ -109,6 +112,12 @@ impl Habit for Float {
 
     fn name(&self) -> &str {
         &self.name
+    }
+    fn description(&self) -> &str {
+        &self.description
+    }
+    fn set_description(&mut self, description: String) {
+        self.description = description;
     }
     fn kind(&self) -> GoalKind {
         GoalKind::Float(self.goal.value, self.goal.precision)

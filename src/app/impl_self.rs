@@ -184,6 +184,9 @@ impl App {
         let s = habit_stats(&reached_dates, today);
 
         let mut out = StyledString::new();
+        if !habit.description().is_empty() {
+            out.append_styled(format!("{}\n\n", habit.description()), inactive_style);
+        }
         out.append_plain(format!("goal: {goal} per day\n\n"));
         out.append_plain(format!("  current streak   {:>4} days\n", s.current_streak));
         out.append_plain(format!("  longest streak   {:>4} days\n", s.longest_streak));
@@ -486,6 +489,15 @@ impl App {
                         }
                     }
                 }
+                Command::Describe(name, description) => {
+                    if let Some(habit) = self.habits.iter_mut().find(|h| h.name() == name) {
+                        habit.set_description(description);
+                    } else {
+                        self.message.set_kind(MessageKind::Error);
+                        self.message
+                            .set_message(format!("Habit `{name}` does not exist"));
+                    }
+                }
                 Command::Delete(name) => {
                     self.delete_by_name(&name);
                     self.focus = 0;
@@ -495,6 +507,7 @@ impl App {
                         self.message.set_message(
                             match topic {
                                 "a"     | "add" => "add <habit-name> [goal]     (alias: a)",
+                                "describe" | "desc" => "describe <habit-name> <text...>     (alias: desc)",
                                 "d"     | "delete" => "delete <habit-name>     (alias: d)",
                                 "mprev" | "month-prev" => "month-prev     (alias: mprev)",
                                 "mnext" | "month-next" => "month-next     (alias: mnext)",
@@ -503,7 +516,7 @@ impl App {
                                 "q"     | "quit" => "quit dijo",
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",
-                                "cmds"  | "commands" => "add, delete, month-{prev,next}, archive, dashboard, help, quit",
+                                "cmds"  | "commands" => "add, describe, delete, month-{prev,next}, archive, dashboard, help, quit",
                                 "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/year/stats/heatmap) | d: dashboard | []: month | Esc: reset",
                                 "wq" =>   "write current state to disk and quit dijo",
                                 _ => "unknown command or help topic.",
@@ -572,6 +585,27 @@ mod tests {
         // header, stats and legend are all present in the rendered body
         assert!(body.source().contains("current streak"));
         assert!(body.source().contains("completion rate"));
+    }
+
+    #[test]
+    fn describe_sets_description_and_shows_in_dashboard() {
+        let mut app = App::new();
+        app.add_habit(Box::new(Count::new("read", 1)));
+
+        app.parse_command(Ok(Command::Describe(
+            "read".into(),
+            "a chapter each night".into(),
+        )));
+
+        let (_, body) = app.focused_dashboard().expect("dashboard");
+        assert!(body.source().contains("a chapter each night"));
+    }
+
+    #[test]
+    fn describe_unknown_habit_is_an_error() {
+        let mut app = App::new();
+        app.parse_command(Ok(Command::Describe("ghost".into(), "boo".into())));
+        assert!(matches!(app.message.kind(), MessageKind::Error));
     }
 
     #[test]

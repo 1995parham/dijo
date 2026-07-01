@@ -10,6 +10,8 @@ use crate::habit::{InnerData, TrackEvent};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Count {
     name: String,
+    #[serde(default)]
+    description: String,
     stats: HashMap<NaiveDate, u32>,
     goal: u32,
 
@@ -21,6 +23,7 @@ impl Count {
     pub fn new(name: impl AsRef<str>, goal: u32) -> Self {
         Count {
             name: name.as_ref().to_owned(),
+            description: String::new(),
             stats: HashMap::new(),
             goal,
             inner_data: Default::default(),
@@ -33,6 +36,12 @@ impl Habit for Count {
 
     fn name(&self) -> &str {
         &self.name
+    }
+    fn description(&self) -> &str {
+        &self.description
+    }
+    fn set_description(&mut self, description: String) {
+        self.description = description;
     }
     fn kind(&self) -> GoalKind {
         GoalKind::Count(self.goal)

@@ -62,6 +62,18 @@ where
             },
         );
 
+        // A one-line description sits dimmed under the name. The Heatmap view
+        // already draws on row 1, so it is skipped there.
+        if self.inner_data_ref().view_mode() != ViewMode::Heatmap && !self.description().is_empty()
+        {
+            printer.with_style(future_style, |p| {
+                p.print(
+                    (0, 1),
+                    &format!(" {:.width$} ", self.description(), width = VIEW_WIDTH - 4),
+                );
+            });
+        }
+
         let draw_week = |printer: &Printer| {
             let days = (1..31)
                 .filter_map(|i| NaiveDate::from_ymd_opt(year, month, i)) // dates 28-31 may not exist, ignore them if they don't

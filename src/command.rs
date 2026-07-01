@@ -12,6 +12,7 @@ use crate::utils::{GRID_WIDTH, VIEW_WIDTH};
 
 static COMMANDS: &[&str] = &[
     "add",
+    "describe",
     "delete",
     "month-prev",
     "month-next",
@@ -167,9 +168,10 @@ impl FromStr for GoalKind {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Command {
     Add(String, Option<GoalKind>),
+    Describe(String, String),
     MonthPrev,
     MonthNext,
     Delete(String),
@@ -234,6 +236,14 @@ impl FromStr for Command {
                 }
                 Ok(Command::Delete(args[0].to_string()))
             }
+            "describe" | "desc" => {
+                if args.len() < 2 {
+                    return Err(CommandLineError::NotEnoughArgs(first, 2));
+                }
+                let name = args[0].to_string();
+                let description = args[1..].join(" ");
+                Ok(Command::Describe(name, description))
+            }
             "h" | "?" | "help" => {
                 if args.is_empty() {
                     return Ok(Command::Help(None));
@@ -250,5 +260,36 @@ impl FromStr for Command {
             "" => Ok(Command::Blank),
             s => Err(CommandLineError::InvalidCommand(s.into())),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn describe_joins_multi_word_text() {
+        let cmd = "describe read a good book every night".parse::<Command>();
+        assert_eq!(
+            cmd.unwrap(),
+            Command::Describe("read".into(), "a good book every night".into())
+        );
+    }
+
+    #[test]
+    fn describe_alias_desc_works() {
+        let cmd = "desc gym leg day".parse::<Command>();
+        assert_eq!(
+            cmd.unwrap(),
+            Command::Describe("gym".into(), "leg day".into())
+        );
+    }
+
+    #[test]
+    fn describe_requires_name_and_text() {
+        assert!(matches!(
+            "describe read".parse::<Command>(),
+            Err(CommandLineError::NotEnoughArgs(_, 2))
+        ));
     }
 }
