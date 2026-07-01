@@ -75,7 +75,8 @@ Press `v` to cycle the view for every habit; `Esc` returns to
 
 #### Commands
 
-`:add <name> [goal]`, `:delete <name>`, `:month-prev` / `:mprev`,
+`:add <name> [goal]`, `:describe <name> <text...>` / `:desc`,
+`:delete <name>`, `:month-prev` / `:mprev`,
 `:month-next` / `:mnext`, `:archive`, `:dashboard` / `:dash`,
 `:write` / `:w`, `:quit` / `:q`, `:writeandquit` / `:wq`,
 `:help [<command>|commands|keys]`.
