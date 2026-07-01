@@ -127,6 +127,24 @@ impl App {
         self.message.clear();
     }
 
+    /// Show the focused habit's full description in the message line. The grid
+    /// cell truncates it to the column width, so this is the quick way to read a
+    /// long description without opening the dashboard.
+    pub fn show_focused_description(&mut self) {
+        let Some(habit) = self.habits.get(self.focus) else {
+            return;
+        };
+        let name = habit.name().to_owned();
+        let description = habit.description().to_owned();
+        self.message.set_kind(MessageKind::Info);
+        if description.is_empty() {
+            self.message
+                .set_message(format!("`{name}` has no description"));
+        } else {
+            self.message.set_message(format!("{name}: {description}"));
+        }
+    }
+
     pub fn status(&self) -> StatusLine {
         let today = chrono::Local::now().naive_local().date();
         let remaining = self.habits.iter().map(|h| h.remaining(today)).sum::<u32>();
@@ -517,7 +535,7 @@ impl App {
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",
                                 "cmds"  | "commands" => "add, describe, delete, month-{prev,next}, archive, dashboard, help, quit",
-                                "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/year/stats/heatmap) | d: dashboard | []: month | Esc: reset",
+                                "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/year/stats/heatmap) | d: dashboard | i: show full description | []: month | Esc: reset",
                                 "wq" =>   "write current state to disk and quit dijo",
                                 _ => "unknown command or help topic.",
                             }
@@ -599,6 +617,31 @@ mod tests {
 
         let (_, body) = app.focused_dashboard().expect("dashboard");
         assert!(body.source().contains("a chapter each night"));
+    }
+
+    #[test]
+    fn show_focused_description_reports_full_text() {
+        let mut app = App::new();
+        app.add_habit(Box::new(Count::new("read", 1)));
+        app.parse_command(Ok(Command::Describe(
+            "read".into(),
+            "a chapter each and every single night before bed".into(),
+        )));
+
+        app.show_focused_description();
+        assert_eq!(
+            app.message.contents(),
+            "read: a chapter each and every single night before bed"
+        );
+    }
+
+    #[test]
+    fn show_focused_description_notes_when_empty() {
+        let mut app = App::new();
+        app.add_habit(Box::new(Count::new("read", 1)));
+
+        app.show_focused_description();
+        assert!(app.message.contents().contains("no description"));
     }
 
     #[test]
