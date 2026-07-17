@@ -201,50 +201,149 @@ pub fn load_archived_reached_goals() -> HashMap<String, HashSet<NaiveDate>> {
                 None => continue,
             };
 
-            let goal = habit.get("goal");
-            let habit_type = habit.get("type").and_then(|t| t.as_str()).unwrap_or("");
-            let stats = match habit.get("stats").and_then(|s| s.as_object()) {
-                Some(s) => s,
-                None => continue,
-            };
-
             let dates = result.entry(name).or_default();
-
-            for (date_str, value) in stats {
-                let date = match NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-                    Ok(d) => d,
-                    Err(_) => continue,
-                };
-
-                let reached = match habit_type {
-                    "Bit" => value.as_bool().unwrap_or(false),
-                    "Count" => {
-                        let val = value.as_u64().unwrap_or(0) as u32;
-                        let g = goal.and_then(|g| g.as_u64()).unwrap_or(0) as u32;
-                        g == 0 || val >= g
-                    }
-                    "Float" => {
-                        let val = value
-                            .as_object()
-                            .and_then(|o| o.get("value"))
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0) as u32;
-                        let g = goal
-                            .and_then(|g| g.as_object())
-                            .and_then(|o| o.get("value"))
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0) as u32;
-                        g == 0 || val >= g
-                    }
-                    _ => false,
-                };
-
-                if reached {
-                    dates.insert(date);
-                }
-            }
+            dates.extend(archived_reached_dates(&habit));
         }
     }
 
     result
+}
+
+/// The reached-goal dates recorded in one archived habit's JSON blob.
+///
+/// Pure so it can be unit-tested without touching the filesystem. Daily habits
+/// judge each day against the goal; weekly `Count`/`Float` habits aggregate
+/// their recorded days into Mon–Sun weeks (within this one archive month) and
+/// mark every recorded day of a week that met its goal. A goal of `0` means
+/// "just track it", so every recorded day/week counts.
+fn archived_reached_dates(habit: &serde_json::Value) -> Vec<NaiveDate> {
+    let habit_type = habit.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    let goal = habit.get("goal");
+    let period = habit
+        .get("period")
+        .and_then(|p| p.as_str())
+        .unwrap_or("Daily");
+    let stats = match habit.get("stats").and_then(|s| s.as_object()) {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    // Numeric goal and per-day contribution, shared by the daily and weekly
+    // branches. Bit habits carry no numeric goal and are always daily.
+    let numeric_goal: u64 = match habit_type {
+        "Count" => goal.and_then(|g| g.as_u64()).unwrap_or(0),
+        "Float" => goal
+            .and_then(|g| g.as_object())
+            .and_then(|o| o.get("value"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0),
+        _ => 0,
+    };
+    let day_value = |value: &serde_json::Value| -> u64 {
+        match habit_type {
+            "Count" => value.as_u64().unwrap_or(0),
+            "Float" => value
+                .as_object()
+                .and_then(|o| o.get("value"))
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0),
+            _ => 0,
+        }
+    };
+
+    let parse = |s: &str| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok();
+    let mut out = Vec::new();
+
+    if period == "Weekly" && (habit_type == "Count" || habit_type == "Float") {
+        let mut weeks: HashMap<NaiveDate, (u64, Vec<NaiveDate>)> = HashMap::new();
+        for (date_str, value) in stats {
+            if let Some(date) = parse(date_str) {
+                let entry = weeks.entry(week_bounds(date).0).or_default();
+                entry.0 += day_value(value);
+                entry.1.push(date);
+            }
+        }
+        for (_monday, (sum, days)) in weeks {
+            if numeric_goal == 0 || sum >= numeric_goal {
+                out.extend(days);
+            }
+        }
+    } else {
+        for (date_str, value) in stats {
+            let Some(date) = parse(date_str) else {
+                continue;
+            };
+            let reached = match habit_type {
+                "Bit" => value.as_bool().unwrap_or(false),
+                "Count" | "Float" => numeric_goal == 0 || day_value(value) >= numeric_goal,
+                _ => false,
+            };
+            if reached {
+                out.push(date);
+            }
+        }
+    }
+
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn d(day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(2024, 1, day).unwrap()
+    }
+
+    fn reached(habit: serde_json::Value) -> HashSet<NaiveDate> {
+        archived_reached_dates(&habit).into_iter().collect()
+    }
+
+    #[test]
+    fn week_bounds_wraps_a_monday_to_sunday_span() {
+        // 2024-01-03 is a Wednesday.
+        assert_eq!(week_bounds(d(3)), (d(1), d(7)));
+    }
+
+    #[test]
+    fn daily_count_marks_days_that_meet_the_goal() {
+        let got = reached(json!({
+            "type": "Count", "name": "water", "goal": 3,
+            "stats": { "2024-01-01": 2, "2024-01-02": 3, "2024-01-03": 5 },
+        }));
+        assert_eq!(got, HashSet::from([d(2), d(3)]));
+    }
+
+    #[test]
+    fn daily_bit_marks_true_days() {
+        let got = reached(json!({
+            "type": "Bit", "name": "read",
+            "stats": { "2024-01-01": true, "2024-01-02": false },
+        }));
+        assert_eq!(got, HashSet::from([d(1)]));
+    }
+
+    #[test]
+    fn weekly_count_marks_the_days_of_a_reached_week_only() {
+        let got = reached(json!({
+            "type": "Count", "name": "gym", "goal": 3, "period": "Weekly",
+            "stats": {
+                // week of Jan 01–07 sums to 3 -> reached
+                "2024-01-01": 1, "2024-01-03": 1, "2024-01-05": 1,
+                // week of Jan 08–14 sums to 2 -> not reached
+                "2024-01-08": 2,
+            },
+        }));
+        assert_eq!(got, HashSet::from([d(1), d(3), d(5)]));
+    }
+
+    #[test]
+    fn a_zero_goal_counts_every_recorded_day() {
+        let got = reached(json!({
+            "type": "Count", "name": "log", "goal": 0,
+            "stats": { "2024-01-01": 0, "2024-01-02": 1 },
+        }));
+        assert_eq!(got, HashSet::from([d(1), d(2)]));
+    }
 }
