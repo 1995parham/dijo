@@ -54,8 +54,20 @@ Data lives in the platform data dir: `habit_record.json` plus an `archive/` of
 
 ## Features (key behaviours)
 
-- View modes cycle with `v`: Day → Week → Month → Year → Stats → Heatmap;
-  `Esc` resets to Day. The mode applies to all habits at once.
+- View modes cycle with `v`: Day → Week → Month → Sparkline → Year → Stats →
+  Heatmap; `Esc` resets to Day. The mode applies to all habits at once.
+- **Sparkline** (`views.rs`): a compact one-row month view — each day is a bar
+  `▁`..`█` whose height tracks that day's completion ratio (`(goal-remaining)/goal`),
+  coloured reached/partial/missed; future days are blank, the cursor day is
+  highlighted.
+- **Weekly goals**: a habit's goal carries a `GoalPeriod` (`Daily`/`Weekly`,
+  `prelude.rs`), stored per habit with `#[serde(default)]` so old records load as
+  daily. `:add gym 3/week` (also `/w`, `/weekly`) makes a `Count`/`Float` whose
+  `reached_goal`/`remaining` aggregate the Mon–Sun week (`week_bounds` in
+  `utils.rs`). A weekly `1` stays a `Count(1)` ("once a week"), not a `Bit`; `Bit`
+  is daily-only. `habit_stats` is period-aware: it reduces reached dates to
+  per-period indices, so a `Weekly` habit's streak/total/rate count *weeks*, and
+  the Stats view and dashboard label the unit accordingly.
 - **Heatmap** (`views.rs`): GitHub-style grid shaded `█`/`▒`/`░` by completion,
   folding in archived reached-days; the rightmost column tracks the viewed week,
   so `[` / `]` scrolls it through history.
@@ -77,7 +89,12 @@ line in `dijo.1`, and **confirm CI is green first**.
 - `GoalKind::Addiction` (`:add foo <5`) parses but falls through to a count-0
   habit in `parse_command` — implement an addiction/limit habit type or reject
   it with a clear message.
-- No tests yet for command parsing (`command.rs`), `archive_habits`
-  month-grouping, or `missed_dates`.
+- `command.rs` now has parse tests (incl. weekly goals); still no tests for
+  `archive_habits` month-grouping or `missed_dates`.
+- The archive scanner reduces to the pure, tested `utils::archived_reached_dates`
+  and is period-aware. One residual approximation: it aggregates weekly goals
+  per archive *file* (i.e. per month), so a Mon–Sun week straddling a month
+  boundary is summed on each side separately. Acceptable given per-month archive
+  granularity.
 - Heatmap glyphs/colors are hardcoded; everything else is themeable via
   `config.toml`.
