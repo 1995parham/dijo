@@ -11,7 +11,7 @@ use cursive::utils::markup::StyledString;
 
 use crate::CONFIGURATION;
 use crate::command::{Command, CommandLineError, GoalKind};
-use crate::habit::{Bit, Count, Float, HabitWrapper, ViewMode};
+use crate::habit::{Bit, Count, Float, GoalPeriod, HabitWrapper, ViewMode};
 use crate::stats::habit_stats;
 use crate::utils::{self, GRID_WIDTH, VIEW_HEIGHT, VIEW_WIDTH};
 
@@ -199,15 +199,26 @@ impl App {
             .filter(|&d| habit.remaining(d) == 0)
             .chain(archived.iter().copied())
             .collect();
-        let s = habit_stats(&reached_dates, today);
+        let s = habit_stats(&reached_dates, today, habit.period());
+        let unit = if habit.period() == GoalPeriod::Weekly {
+            "weeks"
+        } else {
+            "days"
+        };
 
         let mut out = StyledString::new();
         if !habit.description().is_empty() {
             out.append_styled(format!("{}\n\n", habit.description()), inactive_style);
         }
-        out.append_plain(format!("goal: {goal} per day\n\n"));
-        out.append_plain(format!("  current streak   {:>4} days\n", s.current_streak));
-        out.append_plain(format!("  longest streak   {:>4} days\n", s.longest_streak));
+        out.append_plain(format!("goal: {goal} per {}\n\n", habit.period()));
+        out.append_plain(format!(
+            "  current streak   {:>4} {unit}\n",
+            s.current_streak
+        ));
+        out.append_plain(format!(
+            "  longest streak   {:>4} {unit}\n",
+            s.longest_streak
+        ));
         out.append_plain(format!(
             "  completed        {:>4} time{}\n",
             s.total,
@@ -485,11 +496,11 @@ impl App {
     pub fn parse_command(&mut self, result: Result<Command, CommandLineError>) {
         match result {
             Ok(c) => match c {
-                Command::Add(name, goal) => {
+                Command::Add(name, goal, period) => {
                     if self.habits.iter().any(|x| x.name() == name) {
                         self.message.set_kind(MessageKind::Error);
                         self.message
-                            .set_message(format!("Habit `{}` already exist", &name));
+                            .set_message(format!("Habit `{name}` already exist"));
                         return;
                     }
                     match goal {
@@ -497,10 +508,10 @@ impl App {
                             self.add_habit(Box::new(Bit::new(name)));
                         }
                         Some(GoalKind::Count(v)) => {
-                            self.add_habit(Box::new(Count::new(name, v)));
+                            self.add_habit(Box::new(Count::new(name, v).with_period(period)));
                         }
                         Some(GoalKind::Float(v, p)) => {
-                            self.add_habit(Box::new(Float::new(name, v, p)));
+                            self.add_habit(Box::new(Float::new(name, v, p).with_period(period)));
                         }
                         _ => {
                             self.add_habit(Box::new(Count::new(name, 0)));
@@ -524,7 +535,7 @@ impl App {
                     if let Some(topic) = input.as_ref().map(String::as_ref) {
                         self.message.set_message(
                             match topic {
-                                "a"     | "add" => "add <habit-name> [goal]     (alias: a)",
+                                "a"     | "add" => "add <habit-name> [goal[/week]]   e.g. `add gym 3/week`  (alias: a)",
                                 "describe" | "desc" => "describe <habit-name> <text...>     (alias: desc)",
                                 "d"     | "delete" => "delete <habit-name>     (alias: d)",
                                 "mprev" | "month-prev" => "month-prev     (alias: mprev)",

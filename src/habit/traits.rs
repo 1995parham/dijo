@@ -5,7 +5,7 @@ use cursive::view::CannotFocus;
 use cursive::{Printer, Vec2};
 
 use crate::command::GoalKind;
-use crate::habit::{Bit, Count, Float, InnerData, TrackEvent};
+use crate::habit::{Bit, Count, Float, GoalPeriod, InnerData, TrackEvent};
 use crate::views::ShadowView;
 
 pub trait Habit {
@@ -23,6 +23,12 @@ pub trait Habit {
     fn remaining(&self, date: NaiveDate) -> u32;
     fn kind(&self) -> GoalKind;
 
+    /// Whether `goal` is a per-day or per-week target. Defaults to daily; only
+    /// numeric habits (`Count`, `Float`) override it.
+    fn period(&self) -> GoalPeriod {
+        GoalPeriod::Daily
+    }
+
     fn inner_data_ref(&self) -> &InnerData;
     fn inner_data_mut_ref(&mut self) -> &mut InnerData;
 }
@@ -33,6 +39,7 @@ pub trait HabitWrapper: erased_serde::Serialize + Sync + Send {
     fn get_dates(&self) -> Vec<NaiveDate>;
     fn goal(&self) -> u32;
     fn kind(&self) -> GoalKind;
+    fn period(&self) -> GoalPeriod;
     fn modify(&mut self, date: NaiveDate, event: TrackEvent);
     fn name(&self) -> &str;
     fn description(&self) -> &str;
@@ -77,6 +84,9 @@ macro_rules! auto_habit_impl {
             }
             fn kind(&self) -> GoalKind {
                 Habit::kind(self)
+            }
+            fn period(&self) -> GoalPeriod {
+                Habit::period(self)
             }
             fn modify(&mut self, date: NaiveDate, event: TrackEvent) {
                 Habit::modify(self, date, event);

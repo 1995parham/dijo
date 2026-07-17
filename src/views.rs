@@ -7,7 +7,7 @@ use cursive::{Printer, Vec2};
 use chrono::prelude::*;
 use chrono::{Days, Local, NaiveDate};
 
-use crate::habit::{Bit, Count, Float, Habit, TrackEvent, ViewMode};
+use crate::habit::{Bit, Count, Float, GoalPeriod, Habit, TrackEvent, ViewMode};
 use crate::stats::habit_stats;
 use crate::theme::cursor_bg;
 use crate::utils::{VIEW_HEIGHT, VIEW_WIDTH};
@@ -74,15 +74,24 @@ where
             });
         }
 
+        let weekly_goal_habit = self.period() == GoalPeriod::Weekly;
         let draw_week = |printer: &Printer| {
             let days = (1..31)
                 .filter_map(|i| NaiveDate::from_ymd_opt(year, month, i)) // dates 28-31 may not exist, ignore them if they don't
                 .collect::<Vec<_>>();
             for (week, line_nr) in days.chunks(7).zip(2..) {
-                let weekly_goal = self.goal() * week.len() as u32;
                 let is_this_week = week.contains(&Local::now().date_naive());
-                let remaining = week.iter().map(|&i| self.remaining(i)).sum::<u32>();
-                let completions = weekly_goal - remaining;
+                // For a weekly-goal habit the target lives on the week itself, so
+                // read the week's progress off any of its days rather than
+                // summing daily targets.
+                let (weekly_goal, completions) = if weekly_goal_habit {
+                    let goal = self.goal();
+                    (goal, goal.saturating_sub(self.remaining(week[0])))
+                } else {
+                    let goal = self.goal() * week.len() as u32;
+                    let remaining = week.iter().map(|&i| self.remaining(i)).sum::<u32>();
+                    (goal, goal - remaining)
+                };
                 let full = VIEW_WIDTH - 8;
                 let bars_to_fill = (completions * full as u32)
                     .checked_div(weekly_goal)
@@ -257,11 +266,12 @@ where
                 .chain(archived.iter().copied())
                 .collect();
 
-            let s = habit_stats(&reached, today);
+            let s = habit_stats(&reached, today, self.period());
+            let unit = if weekly_goal_habit { "weeks" } else { "days" };
 
             let lines = [
-                format!("Current  {:>4} days", s.current_streak),
-                format!("Longest  {:>4} days", s.longest_streak),
+                format!("Current  {:>4} {unit}", s.current_streak),
+                format!("Longest  {:>4} {unit}", s.longest_streak),
                 format!(
                     "Done     {:>4} time{}",
                     s.total,

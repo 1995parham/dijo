@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use chrono::{Datelike, Days, NaiveDate};
 use cursive::theme::{BaseColor, Color};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
@@ -11,6 +11,15 @@ use std::path::PathBuf;
 pub const VIEW_WIDTH: usize = 30;
 pub const VIEW_HEIGHT: usize = 10;
 pub const GRID_WIDTH: usize = 3;
+
+/// The Monday and Sunday bounding the ISO-style week that contains `date`.
+/// Used by weekly-goal habits to aggregate a week's entries.
+pub fn week_bounds(date: NaiveDate) -> (NaiveDate, NaiveDate) {
+    let offset = date.weekday().num_days_from_monday() as u64;
+    let monday = date.checked_sub_days(Days::new(offset)).unwrap_or(date);
+    let sunday = monday.checked_add_days(Days::new(6)).unwrap_or(monday);
+    (monday, sunday)
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Characters {

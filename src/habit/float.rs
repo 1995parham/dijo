@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Add, Sub};
 
-use chrono::NaiveDate;
+use chrono::{Days, NaiveDate};
 use serde::{Deserialize, Serialize};
 
 use crate::command::GoalKind;
 use crate::habit::traits::Habit;
-use crate::habit::{InnerData, TrackEvent};
+use crate::habit::{GoalPeriod, InnerData, TrackEvent};
+use crate::utils::week_bounds;
 
 #[derive(Copy, Clone, Debug, Ord, Eq, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct FloatData {
@@ -86,6 +87,8 @@ pub struct Float {
     stats: HashMap<NaiveDate, FloatData>,
     goal: FloatData,
     precision: u8,
+    #[serde(default)]
+    period: GoalPeriod,
 
     #[serde(skip)]
     inner_data: InnerData,
@@ -102,8 +105,29 @@ impl Float {
                 precision,
             },
             precision,
+            period: GoalPeriod::Daily,
             inner_data: Default::default(),
         }
+    }
+
+    pub fn with_period(mut self, period: GoalPeriod) -> Self {
+        self.period = period;
+        self
+    }
+
+    /// Sum of every entry's value in the Mon–Sun week containing `date`.
+    fn week_total(&self, date: NaiveDate) -> u32 {
+        let (monday, sunday) = week_bounds(date);
+        let mut day = monday;
+        let mut total = 0;
+        while day <= sunday {
+            total += self.stats.get(&day).map(|v| v.value).unwrap_or(0);
+            day = match day.checked_add_days(Days::new(1)) {
+                Some(d) => d,
+                None => break,
+            };
+        }
+        total
     }
 }
 
@@ -132,19 +156,30 @@ impl Habit for Float {
         *self.stats.entry(date).or_insert(val) = val;
     }
     fn reached_goal(&self, date: NaiveDate) -> bool {
-        self.stats.get(&date).is_some_and(|val| val >= &self.goal)
+        match self.period {
+            GoalPeriod::Daily => self.stats.get(&date).is_some_and(|val| val >= &self.goal),
+            GoalPeriod::Weekly => self.week_total(date) >= self.goal.value,
+        }
     }
     fn remaining(&self, date: NaiveDate) -> u32 {
-        if self.reached_goal(date) {
-            0
-        } else if let Some(&val) = self.stats.get(&date) {
-            (self.goal - val).value
-        } else {
-            self.goal.value
+        match self.period {
+            GoalPeriod::Daily => {
+                if self.reached_goal(date) {
+                    0
+                } else if let Some(&val) = self.stats.get(&date) {
+                    (self.goal - val).value
+                } else {
+                    self.goal.value
+                }
+            }
+            GoalPeriod::Weekly => self.goal.value.saturating_sub(self.week_total(date)),
         }
     }
     fn goal(&self) -> u32 {
         self.goal.value
+    }
+    fn period(&self) -> GoalPeriod {
+        self.period
     }
     fn modify(&mut self, date: NaiveDate, event: TrackEvent) {
         match event {

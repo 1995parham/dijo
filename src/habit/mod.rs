@@ -11,7 +11,7 @@ mod float;
 pub use float::Float;
 
 mod prelude;
-pub use prelude::{TrackEvent, ViewMode};
+pub use prelude::{GoalPeriod, TrackEvent, ViewMode};
 
 use crate::app::Cursor;
 

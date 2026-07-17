@@ -8,6 +8,7 @@ use cursive::view::Resizable;
 use cursive::views::{Dialog, EditView, LinearLayout, OnEventView, TextView};
 
 use crate::app::App;
+use crate::habit::GoalPeriod;
 use crate::utils::{GRID_WIDTH, VIEW_WIDTH};
 
 static COMMANDS: &[&str] = &[
@@ -168,9 +169,20 @@ impl FromStr for GoalKind {
     }
 }
 
+/// Split a trailing period marker (`/week`, `/weekly`, `/w`) off a goal token,
+/// returning the bare goal expression and the period it denotes.
+fn split_period(token: &str) -> (&str, GoalPeriod) {
+    for suffix in ["/week", "/weekly", "/w"] {
+        if let Some(base) = token.strip_suffix(suffix) {
+            return (base, GoalPeriod::Weekly);
+        }
+    }
+    (token, GoalPeriod::Daily)
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Command {
-    Add(String, Option<GoalKind>),
+    Add(String, Option<GoalKind>, GoalPeriod),
     Describe(String, String),
     MonthPrev,
     MonthNext,
@@ -224,8 +236,24 @@ impl FromStr for Command {
             if args.is_empty() {
                 return Err(CommandLineError::NotEnoughArgs(first, 1));
             }
-            let goal = args.get(1).map(|x| GoalKind::from_str(x)).transpose()?;
-            Ok(Command::Add(args.get_mut(0).unwrap().to_string(), goal))
+            let (goal, period) = match args.get(1) {
+                Some(raw) => {
+                    let (base, period) = split_period(raw);
+                    let mut kind = GoalKind::from_str(base)?;
+                    // A weekly `1` is "once a week", a legitimate count target,
+                    // not a daily yes/no habit.
+                    if period == GoalPeriod::Weekly && kind == GoalKind::Bit {
+                        kind = GoalKind::Count(1);
+                    }
+                    (Some(kind), period)
+                }
+                None => (None, GoalPeriod::Daily),
+            };
+            Ok(Command::Add(
+                args.get_mut(0).unwrap().to_string(),
+                goal,
+                period,
+            ))
         };
 
         match first.as_ref() {
@@ -291,5 +319,50 @@ mod tests {
             "describe read".parse::<Command>(),
             Err(CommandLineError::NotEnoughArgs(_, 2))
         ));
+    }
+
+    #[test]
+    fn add_defaults_to_a_daily_goal() {
+        assert_eq!(
+            "add gym 3".parse::<Command>().unwrap(),
+            Command::Add("gym".into(), Some(GoalKind::Count(3)), GoalPeriod::Daily)
+        );
+    }
+
+    #[test]
+    fn add_parses_weekly_goal_suffix() {
+        for token in ["3/week", "3/weekly", "3/w"] {
+            assert_eq!(
+                format!("add gym {token}").parse::<Command>().unwrap(),
+                Command::Add("gym".into(), Some(GoalKind::Count(3)), GoalPeriod::Weekly),
+                "token `{token}` should parse as a weekly count goal",
+            );
+        }
+    }
+
+    #[test]
+    fn weekly_one_is_a_count_not_a_bit() {
+        // `1/week` means "once a week" — a genuine count target, unlike a bare
+        // daily `1` which is a yes/no Bit habit.
+        assert_eq!(
+            "add floss 1/week".parse::<Command>().unwrap(),
+            Command::Add("floss".into(), Some(GoalKind::Count(1)), GoalPeriod::Weekly)
+        );
+        assert_eq!(
+            "add floss 1".parse::<Command>().unwrap(),
+            Command::Add("floss".into(), Some(GoalKind::Bit), GoalPeriod::Daily)
+        );
+    }
+
+    #[test]
+    fn add_parses_weekly_float_goal() {
+        assert_eq!(
+            "add run 10.5/week".parse::<Command>().unwrap(),
+            Command::Add(
+                "run".into(),
+                Some(GoalKind::Float(105, 1)),
+                GoalPeriod::Weekly
+            )
+        );
     }
 }
