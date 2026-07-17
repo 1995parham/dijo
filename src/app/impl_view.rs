@@ -97,7 +97,8 @@ impl View for App {
                 let next = match self.habits[self.focus].inner_data_ref().view_mode() {
                     ViewMode::Day => ViewMode::Week,
                     ViewMode::Week => ViewMode::Month,
-                    ViewMode::Month => ViewMode::Year,
+                    ViewMode::Month => ViewMode::Sparkline,
+                    ViewMode::Sparkline => ViewMode::Year,
                     ViewMode::Year => ViewMode::Stats,
                     ViewMode::Stats => ViewMode::Heatmap,
                     ViewMode::Heatmap => ViewMode::Day,

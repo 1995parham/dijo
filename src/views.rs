@@ -254,6 +254,40 @@ where
             }
         };
 
+        // A compact one-row month view: each day of the month is a single bar
+        // whose height (`▁`..`█`) tracks that day's completion ratio. Reached
+        // days are full and coloured as such, partial days sit mid-ramp, missed
+        // days show the lowest bar, and future days are left blank.
+        let draw_sparkline = |printer: &Printer| {
+            const RAMP: [&str; 8] = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+            let today = Local::now().date_naive();
+            let todo_style = Style::from(CONFIGURATION.todo_color());
+            let cursor_style = Style::from(ColorStyle::back(cursor_bg()));
+            let goal = self.goal().max(1);
+
+            let mut i = 0u32;
+            while let Some(d) = NaiveDate::from_ymd_opt(year, month, i + 1) {
+                let coords: Vec2 = (i as usize, 2).into();
+                let (glyph, mut style): (&str, Style) = if d > today {
+                    (" ", future_style)
+                } else if self.reached_goal(d) {
+                    (RAMP[RAMP.len() - 1], goal_reached_style)
+                } else if self.get_by_date(d).is_some() {
+                    let done = goal.saturating_sub(self.remaining(d));
+                    let idx =
+                        ((done as f64 / goal as f64) * (RAMP.len() - 1) as f64).round() as usize;
+                    (RAMP[idx.min(RAMP.len() - 1)], todo_style)
+                } else {
+                    (RAMP[0], future_style)
+                };
+                if d == now && printer.focused {
+                    style = style.combine(cursor_style);
+                }
+                printer.with_style(style, |p| p.print(coords, glyph));
+                i += 1;
+            }
+        };
+
         let draw_stats = |printer: &Printer| {
             let today = Local::now().date_naive();
 
@@ -332,6 +366,7 @@ where
             ViewMode::Day => draw_day(printer),
             ViewMode::Week => draw_week(printer),
             ViewMode::Month => draw_month(printer),
+            ViewMode::Sparkline => draw_sparkline(printer),
             ViewMode::Year => draw_year(printer),
             ViewMode::Stats => draw_stats(printer),
             ViewMode::Heatmap => draw_heatmap(printer),
