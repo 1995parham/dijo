@@ -13,9 +13,9 @@ license = "MIT"
 
 [dependencies]
 erased-serde = "0.4"
-typetag = "0.2.22"
+typetag = "0.2.23"
 directories = "6.0.0"
-toml = "1.1.2"
+toml = "1.1.3"
 syn = "3"
 cursive = "0.21"
 
