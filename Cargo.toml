@@ -16,7 +16,7 @@ erased-serde = "0.4"
 typetag = "0.2.22"
 directories = "6.0.0"
 toml = "1.1.2"
-syn = "2"
+syn = "3"
 cursive = "0.21"
 
 [dependencies.chrono]
