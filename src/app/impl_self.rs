@@ -127,22 +127,22 @@ impl App {
         self.message.clear();
     }
 
-    /// Show the focused habit's full description in the message line. The grid
-    /// cell truncates it to the column width, so this is the quick way to read a
-    /// long description without opening the dashboard.
-    pub fn show_focused_description(&mut self) {
-        let Some(habit) = self.habits.get(self.focus) else {
-            return;
-        };
+    /// Name and full description of the focused habit, for the `i` popup. The
+    /// grid cell truncates the description to one line, so the popup is where
+    /// long or multi-line text is read in full. Returns `None` when there are
+    /// no habits, or when the habit has no description (noted in the message
+    /// line instead).
+    pub fn focused_description(&mut self) -> Option<(String, String)> {
+        let habit = self.habits.get(self.focus)?;
         let name = habit.name().to_owned();
         let description = habit.description().to_owned();
-        self.message.set_kind(MessageKind::Info);
         if description.is_empty() {
+            self.message.set_kind(MessageKind::Info);
             self.message
                 .set_message(format!("`{name}` has no description"));
-        } else {
-            self.message.set_message(format!("{name}: {description}"));
+            return None;
         }
+        Some((name, description))
     }
 
     pub fn status(&self) -> StatusLine {
@@ -546,7 +546,7 @@ impl App {
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",
                                 "cmds"  | "commands" => "add, describe, delete, month-{prev,next}, archive, dashboard, help, quit",
-                                "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/sparkline/year/stats/heatmap) | d: dashboard | i: show full description | []: month | Esc: reset",
+                                "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/sparkline/year/stats/heatmap) | d: dashboard | i: description popup | []: month | Esc: reset",
                                 "wq" =>   "write current state to disk and quit dijo",
                                 _ => "unknown command or help topic.",
                             }
@@ -631,27 +631,30 @@ mod tests {
     }
 
     #[test]
-    fn show_focused_description_reports_full_text() {
+    fn focused_description_returns_full_multiline_text() {
         let mut app = App::new();
         app.add_habit(Box::new(Count::new("read", 1)));
         app.parse_command(Ok(Command::Describe(
             "read".into(),
-            "a chapter each and every single night before bed".into(),
+            "a chapter each night\nbefore bed".into(),
         )));
 
-        app.show_focused_description();
-        assert_eq!(
-            app.message.contents(),
-            "read: a chapter each and every single night before bed"
-        );
+        let (name, body) = app.focused_description().expect("description popup body");
+        assert_eq!(name, "read");
+        assert_eq!(body, "a chapter each night\nbefore bed");
     }
 
     #[test]
-    fn show_focused_description_notes_when_empty() {
+    fn focused_description_is_none_without_habits() {
+        assert!(App::new().focused_description().is_none());
+    }
+
+    #[test]
+    fn focused_description_notes_when_empty() {
         let mut app = App::new();
         app.add_habit(Box::new(Count::new("read", 1)));
 
-        app.show_focused_description();
+        assert!(app.focused_description().is_none());
         assert!(app.message.contents().contains("no description"));
     }
 

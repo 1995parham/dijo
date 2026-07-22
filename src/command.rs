@@ -131,6 +131,31 @@ pub fn open_dashboard(s: &mut Cursive) {
     s.add_layer(view);
 }
 
+/// Open a popup with the focused habit's full description, line breaks
+/// intact. Dismissed with `q` or `Esc`.
+pub fn open_description(s: &mut Cursive) {
+    let description = s
+        .call_on_name("Main", |view: &mut App| view.focused_description())
+        .flatten();
+    let Some((name, body)) = description else {
+        return;
+    };
+
+    let dialog = Dialog::around(TextView::new(body))
+        .title(name)
+        .button("close", |s| {
+            s.pop_layer();
+        });
+    let view = OnEventView::new(dialog)
+        .on_event(Event::Key(Key::Esc), |s| {
+            s.pop_layer();
+        })
+        .on_event('q', |s| {
+            s.pop_layer();
+        });
+    s.add_layer(view);
+}
+
 #[derive(Debug, PartialEq)]
 pub enum GoalKind {
     Count(u32),
@@ -269,7 +294,9 @@ impl FromStr for Command {
                     return Err(CommandLineError::NotEnoughArgs(first, 2));
                 }
                 let name = args[0].to_string();
-                let description = args[1..].join(" ");
+                // the command line is single-line, so `\n` is the only way to
+                // put a line break in a description
+                let description = args[1..].join(" ").replace("\\n", "\n");
                 Ok(Command::Describe(name, description))
             }
             "h" | "?" | "help" => {
@@ -310,6 +337,15 @@ mod tests {
         assert_eq!(
             cmd.unwrap(),
             Command::Describe("gym".into(), "leg day".into())
+        );
+    }
+
+    #[test]
+    fn describe_unescapes_newlines() {
+        let cmd = r"describe gym go\nlift".parse::<Command>();
+        assert_eq!(
+            cmd.unwrap(),
+            Command::Describe("gym".into(), "go\nlift".into())
         );
     }
 

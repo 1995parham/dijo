@@ -120,11 +120,9 @@ impl View for App {
             // push needs the Cursive root, so defer it to a callback
             Event::Char('d') => EventResult::with_cb(crate::command::open_dashboard),
 
-            // print the focused habit's full description in the message line
-            Event::Char('i') => {
-                self.show_focused_description();
-                EventResult::Consumed(None)
-            }
+            // open the focused habit's description in a popup; the layer push
+            // needs the Cursive root, so defer it to a callback
+            Event::Char('i') => EventResult::with_cb(crate::command::open_description),
 
             /* We want sifting to be an app level function,
              * that later trickles down into each habit

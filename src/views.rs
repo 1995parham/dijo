@@ -62,14 +62,16 @@ where
             },
         );
 
-        // A one-line description sits dimmed under the name. The Heatmap view
-        // already draws on row 1, so it is skipped there.
+        // Only the first line of the description sits dimmed under the name,
+        // truncated to the cell width; `i` opens the full text in a popup. The
+        // Heatmap view already draws on row 1, so it is skipped there.
         if self.inner_data_ref().view_mode() != ViewMode::Heatmap && !self.description().is_empty()
         {
+            let first_line = self.description().lines().next().unwrap_or("");
             printer.with_style(future_style, |p| {
                 p.print(
                     (0, 1),
-                    &format!(" {:.width$} ", self.description(), width = VIEW_WIDTH - 4),
+                    &format!(" {:.width$} ", first_line, width = VIEW_WIDTH - 4),
                 );
             });
         }
