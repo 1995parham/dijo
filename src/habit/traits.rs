@@ -1,6 +1,7 @@
 use chrono::{Datelike, Days, Local, NaiveDate};
 use cursive::direction::Direction;
 use cursive::event::{Event, EventResult};
+use cursive::theme::Color;
 use cursive::view::CannotFocus;
 use cursive::{Printer, Vec2};
 
@@ -34,8 +35,8 @@ pub trait Habit {
 }
 
 #[typetag::serde(tag = "type")]
-pub trait HabitWrapper: erased_serde::Serialize + Sync + Send {
-    fn draw(&self, printer: &Printer);
+pub trait HabitWrapper: Sync + Send {
+    fn draw(&self, printer: &Printer, accent: Color);
     fn get_dates(&self) -> Vec<NaiveDate>;
     fn goal(&self) -> u32;
     fn kind(&self) -> GoalKind;
@@ -59,8 +60,8 @@ macro_rules! auto_habit_impl {
         #[typetag::serde]
         impl HabitWrapper for $struct_name {
             // ShadowView
-            fn draw(&self, printer: &Printer) {
-                ShadowView::draw(self, printer)
+            fn draw(&self, printer: &Printer, accent: Color) {
+                ShadowView::draw(self, printer, accent)
             }
             fn on_event(&mut self, event: Event) -> EventResult {
                 ShadowView::on_event(self, event)

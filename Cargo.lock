@@ -317,10 +317,8 @@ dependencies = [
  "clap",
  "cursive",
  "directories",
- "erased-serde",
  "serde",
  "serde_json",
- "syn 3.0.10",
  "toml",
  "typetag",
 ]

@@ -1,24 +1,44 @@
 use cursive::direction::Direction;
 use cursive::event::{Event, EventResult, Key};
-use cursive::theme::{ColorStyle, Effect, Style};
-use cursive::view::{CannotFocus, View};
+use cursive::theme::{Color, Effect, Style};
+use cursive::view::CannotFocus;
 use cursive::{Printer, Vec2};
 
 use chrono::prelude::*;
 use chrono::{Days, Local, NaiveDate};
 
-use crate::habit::{Bit, Count, Float, GoalPeriod, Habit, TrackEvent, ViewMode};
+use crate::habit::{GoalPeriod, Habit, TrackEvent, ViewMode};
 use crate::stats::habit_stats;
-use crate::theme::cursor_bg;
-use crate::utils::{VIEW_HEIGHT, VIEW_WIDTH};
+use crate::theme::progress_color;
+use crate::utils::{VIEW_HEIGHT, VIEW_WIDTH, week_bounds};
 
 use crate::CONFIGURATION;
 
+/// Bars of rising height, for the sparkline and the month view.
+const RAMP: [&str; 8] = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+
 pub trait ShadowView {
-    fn draw(&self, printer: &Printer);
+    /// Draw the body of a habit card. The frame and the title belong to the
+    /// grid; `accent` is the color the grid gave this habit.
+    fn draw(&self, printer: &Printer, accent: Color);
     fn required_size(&mut self, _: Vec2) -> Vec2;
     fn take_focus(&mut self, _: Direction) -> Result<EventResult, CannotFocus>;
     fn on_event(&mut self, e: Event) -> EventResult;
+}
+
+/// A horizontal bar of `width` cells with the first `filled` in `color`.
+fn draw_bar(printer: &Printer, at: (usize, usize), width: usize, filled: usize, color: Color) {
+    printer.with_style(CONFIGURATION.inactive_color(), |p| {
+        p.print(at, &"━".repeat(width));
+    });
+    printer.with_style(color, |p| {
+        p.print(at, &"━".repeat(filled.min(width)));
+    });
+}
+
+fn ramp(ratio: f64) -> &'static str {
+    let idx = (ratio.clamp(0.0, 1.0) * (RAMP.len() - 1) as f64).round() as usize;
+    RAMP[idx.min(RAMP.len() - 1)]
 }
 
 // the only way to not rewrite each View implementation for trait
@@ -28,271 +48,213 @@ where
     T: Habit,
     T::HabitType: std::fmt::Display,
 {
-    fn draw(&self, printer: &Printer) {
-        let now = self.inner_data_ref().cursor().0;
-        let is_today = now == Local::now().date_naive();
-        let year = now.year();
-        let month = now.month();
+    fn draw(&self, printer: &Printer, accent: Color) {
+        let cursor = self.inner_data_ref().cursor().0;
+        let today = Local::now().date_naive();
+        let year = cursor.year();
+        let month = cursor.month();
 
-        let goal_reached_style = Style::from(CONFIGURATION.reached_color());
-        let future_style = Style::from(CONFIGURATION.inactive_color());
-
-        let strikethrough = Style::from(Effect::Strikethrough);
-
-        let goal_status = is_today && self.reached_goal(Local::now().date_naive());
-
-        printer.with_style(
-            Style::merge(&[
-                if goal_status {
-                    strikethrough
-                } else {
-                    Style::none()
-                },
-                if !printer.focused {
-                    future_style
-                } else {
-                    Style::none()
-                },
-            ]),
-            |p| {
-                p.print(
-                    (0, 0),
-                    &format!(" {:.width$} ", self.name(), width = VIEW_WIDTH - 6),
-                );
-            },
-        );
-
-        // Only the first line of the description sits dimmed under the name,
-        // truncated to the cell width; `i` opens the full text in a popup. The
-        // Heatmap view already draws on row 1, so it is skipped there.
-        if self.inner_data_ref().view_mode() != ViewMode::Heatmap && !self.description().is_empty()
-        {
-            let first_line = self.description().lines().next().unwrap_or("");
-            printer.with_style(future_style, |p| {
-                p.print(
-                    (0, 1),
-                    &format!(" {:.width$} ", first_line, width = VIEW_WIDTH - 4),
-                );
-            });
-        }
-
-        let weekly_goal_habit = self.period() == GoalPeriod::Weekly;
-        let draw_week = |printer: &Printer| {
-            let days = (1..31)
-                .filter_map(|i| NaiveDate::from_ymd_opt(year, month, i)) // dates 28-31 may not exist, ignore them if they don't
-                .collect::<Vec<_>>();
-            for (week, line_nr) in days.chunks(7).zip(2..) {
-                let is_this_week = week.contains(&Local::now().date_naive());
-                // For a weekly-goal habit the target lives on the week itself, so
-                // read the week's progress off any of its days rather than
-                // summing daily targets.
-                let (weekly_goal, completions) = if weekly_goal_habit {
-                    let goal = self.goal();
-                    (goal, goal.saturating_sub(self.remaining(week[0])))
-                } else {
-                    let goal = self.goal() * week.len() as u32;
-                    let remaining = week.iter().map(|&i| self.remaining(i)).sum::<u32>();
-                    (goal, goal - remaining)
-                };
-                let full = VIEW_WIDTH - 8;
-                let bars_to_fill = (completions * full as u32)
-                    .checked_div(weekly_goal)
-                    .unwrap_or(0);
-                let percentage = if weekly_goal > 0 {
-                    (completions as f64 * 100.) / weekly_goal as f64
-                } else {
-                    0.0
-                };
-                printer.with_style(future_style, |p| {
-                    p.print((4, line_nr), &"─".repeat(full));
-                });
-                printer.with_style(goal_reached_style, |p| {
-                    p.print((4, line_nr), &"─".repeat(bars_to_fill as usize));
-                });
-                printer.with_style(
-                    if is_this_week {
-                        Style::none()
-                    } else {
-                        future_style
-                    },
-                    |p| {
-                        p.print((0, line_nr), &format!("{percentage:2.0}% "));
-                    },
-                );
-            }
-        };
-
-        let draw_day = |printer: &Printer| {
-            let mut i = 0;
-            while let Some(d) = NaiveDate::from_ymd_opt(year, month, i + 1) {
-                let mut day_style = Style::none();
-                let mut fs = future_style;
-                let grs = ColorStyle::front(CONFIGURATION.reached_color());
-                let ts = ColorStyle::front(CONFIGURATION.todo_color());
-                let cs = ColorStyle::back(cursor_bg());
-
-                if self.reached_goal(d) {
-                    day_style = day_style.combine(Style::from(grs));
-                } else {
-                    day_style = day_style.combine(Style::from(ts));
-                }
-                if d == now && printer.focused {
-                    day_style = day_style.combine(cs);
-                    fs = fs.combine(cs);
-                }
-                let coords: Vec2 = ((i % 7) * 3, i / 7 + 2).into();
-                if let Some(c) = self.get_by_date(d) {
-                    printer.with_style(day_style, |p| {
-                        p.print(coords, &format!("{c:^3}"));
-                    });
-                } else if d < now {
-                    printer.with_style(fs, |p| {
-                        p.print(coords, &format!("{:^3}", CONFIGURATION.look.missing_chr));
-                    });
-                } else {
-                    printer.with_style(fs, |p| {
-                        p.print(coords, &format!("{:^3}", CONFIGURATION.look.future_chr));
-                    });
-                }
-                i += 1;
-            }
-        };
+        let todo = CONFIGURATION.todo_color();
+        let dim = Style::from(CONFIGURATION.inactive_color());
+        let reached_style = Style::from(accent).combine(Effect::Bold);
+        let weekly = self.period() == GoalPeriod::Weekly;
 
         let archived = &self.inner_data_ref().archived_reached;
         let reached_or_archived =
             |date: NaiveDate| -> bool { self.reached_goal(date) || archived.contains(&date) };
 
+        // How far `date` (or its week, for a weekly goal) is towards the goal.
+        let ratio = |date: NaiveDate| -> f64 {
+            let goal = self.goal();
+            if reached_or_archived(date) {
+                1.0
+            } else if goal == 0 {
+                0.0
+            } else {
+                f64::from(goal.saturating_sub(self.remaining(date))) / f64::from(goal)
+            }
+        };
+        let progress_style = |date: NaiveDate| -> Style {
+            let r = ratio(date);
+            if r >= 1.0 {
+                reached_style
+            } else if r > 0.0 {
+                Style::from(progress_color(accent, todo, r))
+            } else {
+                dim
+            }
+        };
+
+        // Reached days out of the days up to today, for a month or a year.
+        let reached_share = |days: &mut dyn Iterator<Item = NaiveDate>| -> Option<f64> {
+            let (mut total, mut reached) = (0u32, 0u32);
+            for date in days.filter(|&d| d <= today) {
+                total += 1;
+                reached += u32::from(reached_or_archived(date));
+            }
+            (total > 0).then(|| f64::from(reached) / f64::from(total))
+        };
+        let days_of =
+            |y: i32, m: u32| (1..=31).filter_map(move |d| NaiveDate::from_ymd_opt(y, m, d));
+
+        // The first line of the description sits dimmed under the title,
+        // truncated to the card; `i` opens the full text in a popup.
+        if let Some(first_line) = self.description().lines().next() {
+            printer.with_style(dim, |p| {
+                p.print(
+                    (0, 0),
+                    &format!(" {:.width$}", first_line, width = VIEW_WIDTH - 2),
+                );
+            });
+        }
+
+        // A real calendar: one column per weekday, one row per week, each cell
+        // showing the value recorded for that day.
+        let draw_day = |printer: &Printer| {
+            const X0: usize = (VIEW_WIDTH - 21) / 2;
+            for (i, name) in ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+                .iter()
+                .enumerate()
+            {
+                printer.with_style(dim, |p| p.print((X0 + i * 3, 1), &format!("{name:^3}")));
+            }
+            let lead = days_of(year, month)
+                .next()
+                .map_or(0, |d| d.weekday().num_days_from_monday() as usize);
+            for (i, d) in days_of(year, month).enumerate() {
+                let slot = lead + i;
+                let coords = (X0 + (slot % 7) * 3, 2 + slot / 7);
+                let (text, mut style) = match self.get_by_date(d) {
+                    Some(c) => (format!("{c:^3}"), progress_style(d)),
+                    None if d <= today => (format!("{:^3}", CONFIGURATION.look.missing_chr), dim),
+                    None => (format!("{:^3}", CONFIGURATION.look.future_chr), dim),
+                };
+                if self.get_by_date(d).is_some() && ratio(d) == 0.0 {
+                    style = Style::from(todo);
+                }
+                if d == today {
+                    style = style.combine(Effect::Underline);
+                }
+                if d == cursor && printer.focused {
+                    style = style.combine(Effect::Reverse);
+                }
+                printer.with_style(style, |p| p.print(coords, &text));
+            }
+        };
+
+        // One bar per Mon–Sun week that touches the month.
+        let draw_week = |printer: &Printer| {
+            const BAR: usize = VIEW_WIDTH - 12;
+            let Some(last) = days_of(year, month).next_back() else {
+                return;
+            };
+            let mut monday = week_bounds(last.with_day(1).unwrap_or(last)).0;
+            let mut line = 2;
+            while monday <= last {
+                let week: Vec<NaiveDate> = (0..7)
+                    .filter_map(|i| monday.checked_add_days(Days::new(i)))
+                    .collect();
+                // A weekly goal lives on the week itself, so read it off any
+                // day; a daily goal is summed over the seven days.
+                let share = if weekly {
+                    ratio(monday)
+                } else {
+                    week.iter().map(|&d| ratio(d)).sum::<f64>() / 7.0
+                };
+                let label_style = if week.contains(&today) {
+                    Style::none()
+                } else {
+                    dim
+                };
+                printer.with_style(label_style, |p| {
+                    p.print((0, line), &monday.format("%d %b").to_string());
+                    if monday <= today {
+                        p.print((BAR + 8, line), &format!("{:>3.0}%", share * 100.0));
+                    }
+                });
+                let filled = (share * BAR as f64).round() as usize;
+                draw_bar(printer, (7, line), BAR, filled, accent);
+                line += 1;
+                let Some(next) = monday.checked_add_days(Days::new(7)) else {
+                    break;
+                };
+                monday = next;
+            }
+        };
+
         let draw_month = |printer: &Printer| {
-            let today = Local::now().date_naive();
-            let months = [
+            const MONTHS: [&str; 12] = [
                 "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
             ];
-            let todo_style = Style::from(ColorStyle::front(CONFIGURATION.todo_color()));
+            const COL: usize = VIEW_WIDTH / 3;
+            for (idx, name) in MONTHS.iter().enumerate() {
+                let m = idx as u32 + 1;
+                let coords = (idx % 3 * COL + 1, idx / 3 + 2);
+                let is_current = year == today.year() && m == today.month();
+                let name_style = if is_current { Style::none() } else { dim };
+                printer.with_style(name_style, |p| p.print(coords, name));
 
-            for (idx, month_name) in months.iter().enumerate() {
-                let month_num = (idx + 1) as u32;
-                let col = idx % 3;
-                let row = idx / 3;
-
-                let mut total_days = 0u32;
-                let mut reached_days = 0u32;
-                for day in 1..=31 {
-                    if let Some(date) = NaiveDate::from_ymd_opt(year, month_num, day)
-                        && date <= today
-                    {
-                        total_days += 1;
-                        if reached_or_archived(date) {
-                            reached_days += 1;
-                        }
+                let value = (coords.0 + 4, coords.1);
+                match reached_share(&mut days_of(year, m)) {
+                    None => printer.with_style(dim, |p| p.print(value, "·")),
+                    Some(share) => {
+                        let style = if share >= 1.0 {
+                            reached_style
+                        } else if share > 0.0 {
+                            Style::from(accent)
+                        } else {
+                            dim
+                        };
+                        printer.with_style(style, |p| {
+                            p.print(value, &format!("{} {:>3.0}%", ramp(share), share * 100.0));
+                        });
                     }
-                }
-
-                let col_width = VIEW_WIDTH / 3;
-                let coords: Vec2 = (col * col_width, row + 2).into();
-
-                if total_days == 0 {
-                    printer.with_style(future_style, |p| {
-                        p.print(coords, &format!("{month_name}  --"));
-                    });
-                } else {
-                    let pct = (reached_days * 100).checked_div(total_days).unwrap_or(0);
-                    let style = if reached_days >= total_days {
-                        goal_reached_style
-                    } else if reached_days > 0 {
-                        todo_style
-                    } else {
-                        future_style
-                    };
-                    printer.with_style(style, |p| {
-                        p.print(coords, &format!("{month_name}{pct:>4}%"));
-                    });
                 }
             }
         };
 
         let draw_year = |printer: &Printer| {
-            let today = Local::now().date_naive();
-            let bar_width = VIEW_WIDTH - 9;
-
+            const BAR: usize = VIEW_WIDTH - 10;
             for i in 0..4 {
                 let y = year - 3 + i;
                 let line = i as usize + 2;
+                let share = reached_share(&mut (1..=12).flat_map(|m| days_of(y, m)));
 
-                let mut total_days = 0u32;
-                let mut reached_days = 0u32;
-                for m in 1..=12 {
-                    for day in 1..=31 {
-                        if let Some(date) = NaiveDate::from_ymd_opt(y, m, day)
-                            && date <= today
-                        {
-                            total_days += 1;
-                            if reached_or_archived(date) {
-                                reached_days += 1;
-                            }
-                        }
-                    }
-                }
-
-                let filled = if total_days > 0 {
-                    (reached_days as usize * bar_width) / total_days as usize
+                let label_style = if y == today.year() {
+                    Style::none()
                 } else {
-                    0
+                    dim
                 };
-                let pct = (reached_days * 100).checked_div(total_days).unwrap_or(0);
-
-                printer.with_style(future_style, |p| {
-                    p.print((0, line), &format!("{y}"));
-                    p.print((4, line), &"─".repeat(bar_width));
-                });
-
-                if total_days > 0 {
-                    printer.with_style(goal_reached_style, |p| {
-                        p.print((4, line), &"─".repeat(filled));
-                    });
-                    printer.with_style(Style::none(), |p| {
-                        p.print((4 + bar_width, line), &format!("{pct:>3}%"));
-                    });
+                printer.with_style(label_style, |p| p.print((0, line), &format!("{y}")));
+                let filled = (share.unwrap_or(0.0) * BAR as f64).round() as usize;
+                draw_bar(printer, (5, line), BAR, filled, accent);
+                if let Some(share) = share {
+                    printer.print((BAR + 6, line), &format!("{:>3.0}%", share * 100.0));
                 }
             }
         };
 
         // A compact one-row month view: each day of the month is a single bar
-        // whose height (`▁`..`█`) tracks that day's completion ratio. Reached
-        // days are full and coloured as such, partial days sit mid-ramp, missed
-        // days show the lowest bar, and future days are left blank.
+        // whose height tracks that day's completion ratio. Reached days are
+        // full, partial days sit mid-ramp, missed days show the lowest bar,
+        // and future days are left blank. A scale of day numbers sits below.
         let draw_sparkline = |printer: &Printer| {
-            const RAMP: [&str; 8] = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
-            let today = Local::now().date_naive();
-            let todo_style = Style::from(CONFIGURATION.todo_color());
-            let cursor_style = Style::from(ColorStyle::back(cursor_bg()));
-            let goal = self.goal().max(1);
-
-            let mut i = 0u32;
-            while let Some(d) = NaiveDate::from_ymd_opt(year, month, i + 1) {
-                let coords: Vec2 = (i as usize, 2).into();
-                let (glyph, mut style): (&str, Style) = if d > today {
-                    (" ", future_style)
-                } else if self.reached_goal(d) {
-                    (RAMP[RAMP.len() - 1], goal_reached_style)
-                } else if self.get_by_date(d).is_some() {
-                    let done = goal.saturating_sub(self.remaining(d));
-                    let idx =
-                        ((done as f64 / goal as f64) * (RAMP.len() - 1) as f64).round() as usize;
-                    (RAMP[idx.min(RAMP.len() - 1)], todo_style)
-                } else {
-                    (RAMP[0], future_style)
-                };
-                if d == now && printer.focused {
-                    style = style.combine(cursor_style);
+            for (i, d) in days_of(year, month).enumerate() {
+                if d.day() == 1 || d.day() % 5 == 0 {
+                    printer.with_style(dim, |p| p.print((i, 4), &d.day().to_string()));
                 }
-                printer.with_style(style, |p| p.print(coords, glyph));
-                i += 1;
+                if d > today {
+                    continue;
+                }
+                let mut style = progress_style(d);
+                if d == cursor && printer.focused {
+                    style = style.combine(Effect::Reverse);
+                }
+                printer.with_style(style, |p| p.print((i, 3), ramp(ratio(d))));
             }
         };
 
         let draw_stats = |printer: &Printer| {
-            let today = Local::now().date_naive();
-
             // every day this habit reached its goal, including months that
             // have since been archived out of the live record
             let reached: Vec<NaiveDate> = self
@@ -303,25 +265,31 @@ where
                 .collect();
 
             let s = habit_stats(&reached, today, self.period());
-            let unit = if weekly_goal_habit { "weeks" } else { "days" };
+            let unit = |n: u32| match (weekly, n == 1) {
+                (true, true) => "week",
+                (true, false) => "weeks",
+                (false, true) => "day",
+                (false, false) => "days",
+            };
 
             let lines = [
-                format!("Current  {:>4} {unit}", s.current_streak),
-                format!("Longest  {:>4} {unit}", s.longest_streak),
-                format!(
-                    "Done     {:>4} time{}",
+                ("current streak", s.current_streak, unit(s.current_streak)),
+                ("longest streak", s.longest_streak, unit(s.longest_streak)),
+                (
+                    "completed",
                     s.total,
-                    if s.total == 1 { "" } else { "s" }
+                    if s.total == 1 { "time" } else { "times" },
                 ),
-                format!("Rate     {:>4} %", s.completion_rate),
+                ("completion rate", s.completion_rate, "%"),
             ];
-            for (i, line) in lines.iter().enumerate() {
-                let style = if i == 0 && s.current_streak > 0 {
-                    goal_reached_style
-                } else {
-                    Style::none()
-                };
-                printer.with_style(style, |p| p.print((2, i + 2), line));
+            for (i, (label, value, unit)) in lines.iter().enumerate() {
+                let line = i + 2;
+                let value_style = if *value > 0 { reached_style } else { dim };
+                printer.with_style(dim, |p| p.print((2, line), label));
+                printer.with_style(value_style, |p| {
+                    p.print((18, line), &format!("{value:>4}"));
+                });
+                printer.print((23, line), unit);
             }
         };
 
@@ -329,37 +297,25 @@ where
         // trailing weeks. The rightmost column is the week containing the viewed
         // date, so sifting months with [ ] scrolls the heatmap through history.
         let draw_heatmap = |printer: &Printer| {
-            let today = Local::now().date_naive();
-            let todo_style = Style::from(CONFIGURATION.todo_color());
-
             const COLS: u64 = VIEW_WIDTH as u64;
-            const ROWS: u64 = 7;
-
-            let weekday_off = now.weekday().num_days_from_monday() as u64;
-            let anchor_monday = now.checked_sub_days(Days::new(weekday_off)).unwrap_or(now);
+            let cell = CONFIGURATION.look.heat_chr.to_string();
+            let anchor_monday = week_bounds(cursor).0;
 
             for col in 0..COLS {
-                let weeks_back = COLS - 1 - col;
-                let week_monday = anchor_monday
-                    .checked_sub_days(Days::new(weeks_back * 7))
-                    .unwrap_or(anchor_monday);
-                for row in 0..ROWS {
-                    let date = match week_monday.checked_add_days(Days::new(row)) {
-                        Some(d) => d,
-                        None => continue,
+                let Some(week_monday) =
+                    anchor_monday.checked_sub_days(Days::new((COLS - 1 - col) * 7))
+                else {
+                    continue;
+                };
+                for row in 0..7u64 {
+                    let Some(date) = week_monday.checked_add_days(Days::new(row)) else {
+                        continue;
                     };
                     if date > today {
                         continue; // leave future days blank
                     }
-                    let coords: Vec2 = (col as usize, row as usize + 1).into();
-                    let (style, glyph): (Style, &str) = if reached_or_archived(date) {
-                        (goal_reached_style, "█")
-                    } else if self.goal() > 0 && self.remaining(date) < self.goal() {
-                        (todo_style, "▒") // some progress, goal not met
-                    } else {
-                        (future_style, "░") // missed or no data
-                    };
-                    printer.with_style(style, |p| p.print(coords, glyph));
+                    let coords = (col as usize, row as usize + 1);
+                    printer.with_style(progress_style(date), |p| p.print(coords, &cell));
                 }
             }
         };
@@ -398,32 +354,3 @@ where
         }
     }
 }
-
-macro_rules! auto_view_impl {
-    ($struct_name:ident) => {
-        impl View for $struct_name {
-            fn draw(&self, printer: &Printer) {
-                ShadowView::draw(self, printer);
-            }
-            fn required_size(&mut self, x: Vec2) -> Vec2 {
-                ShadowView::required_size(self, x)
-            }
-            fn take_focus(&mut self, d: Direction) -> Result<EventResult, CannotFocus> {
-                ShadowView::take_focus(self, d)
-            }
-            fn on_event(&mut self, e: Event) -> EventResult {
-                ShadowView::on_event(self, e)
-            }
-        }
-    };
-}
-
-macro_rules! generate_view_impls {
-    ($($x:ident),*) => (
-        $(
-            auto_view_impl!($x);
-        )*
-    );
-}
-
-generate_view_impls!(Count, Bit, Float);

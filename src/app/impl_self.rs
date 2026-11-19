@@ -1,19 +1,18 @@
 use std::collections::{HashMap, HashSet};
-use std::fs::{File, OpenOptions};
-use std::io::prelude::*;
+use std::io::ErrorKind;
 use std::path::PathBuf;
 
 use chrono::{Datelike, Days, Local, NaiveDate};
-use cursive::Vec2;
 use cursive::direction::Absolute;
-use cursive::theme::Style;
+use cursive::theme::{Effect, Style};
 use cursive::utils::markup::StyledString;
 
 use crate::CONFIGURATION;
 use crate::command::{Command, CommandLineError, GoalKind};
 use crate::habit::{Bit, Count, Float, GoalPeriod, HabitWrapper, ViewMode};
 use crate::stats::habit_stats;
-use crate::utils::{self, GRID_WIDTH, VIEW_HEIGHT, VIEW_WIDTH};
+use crate::theme::progress_color;
+use crate::utils::{self, GRID_WIDTH, VIEW_HEIGHT};
 
 use crate::app::{App, Cursor, Message, MessageKind, StatusLine};
 
@@ -22,6 +21,7 @@ impl App {
         App {
             habits: vec![],
             focus: 0,
+            cols: GRID_WIDTH,
             cursor: Cursor::new(),
             message: Message::startup(),
         }
@@ -106,15 +106,15 @@ impl App {
                 }
             }
             Absolute::Down => {
-                if self.focus + GRID_WIDTH < self.habits.len() - 1 {
-                    self.focus += GRID_WIDTH;
+                if self.focus + self.cols < self.habits.len() - 1 {
+                    self.focus += self.cols;
                 } else {
                     self.focus = self.habits.len() - 1;
                 }
             }
             Absolute::Up => {
-                if self.focus as isize - GRID_WIDTH as isize >= 0 {
-                    self.focus -= GRID_WIDTH;
+                if self.focus >= self.cols {
+                    self.focus -= self.cols;
                 } else {
                     self.focus = 0;
                 }
@@ -146,28 +146,23 @@ impl App {
     }
 
     pub fn status(&self) -> StatusLine {
-        let today = chrono::Local::now().naive_local().date();
-        let remaining = self.habits.iter().map(|h| h.remaining(today)).sum::<u32>();
-        let total = self.habits.iter().map(|h| h.goal()).sum::<u32>();
-        let completed = total - remaining;
+        let today = Local::now().date_naive();
+        let with_goal = || self.habits.iter().filter(|h| h.goal() > 0);
 
         let timestamp = if self.cursor.0 == today {
-            format!("{}", Local::now().naive_local().date().format("%d/%b/%y"),)
+            today.format("%a %d %b %Y").to_string()
         } else {
             let since = NaiveDate::signed_duration_since(today, self.cursor.0).num_days();
             let plural = if since == 1 { "" } else { "s" };
             format!("{} ({} day{} ago)", self.cursor.0, since, plural)
         };
 
-        StatusLine(
-            format!(
-                "Today: {} completed, {} remaining --{}--",
-                completed,
-                remaining,
-                self.get_mode()
-            ),
+        StatusLine {
+            mode: self.get_mode(),
+            done: with_goal().filter(|h| h.remaining(today) == 0).count(),
+            total: with_goal().count(),
             timestamp,
-        )
+        }
     }
 
     /// Build a full-screen dashboard for the currently focused habit: a header,
@@ -178,8 +173,9 @@ impl App {
         let habit = self.habits.get(self.focus)?;
         let today = Local::now().date_naive();
 
-        let reached_style = Style::from(CONFIGURATION.reached_color());
-        let todo_style = Style::from(CONFIGURATION.todo_color());
+        let accent = CONFIGURATION.accent(self.focus);
+        let todo = CONFIGURATION.todo_color();
+        let reached_style = Style::from(accent).combine(Effect::Bold);
         let inactive_style = Style::from(CONFIGURATION.inactive_color());
 
         let goal = habit.goal();
@@ -210,21 +206,25 @@ impl App {
         if !habit.description().is_empty() {
             out.append_styled(format!("{}\n\n", habit.description()), inactive_style);
         }
-        out.append_plain(format!("goal: {goal} per {}\n\n", habit.period()));
-        out.append_plain(format!(
-            "  current streak   {:>4} {unit}\n",
-            s.current_streak
-        ));
-        out.append_plain(format!(
-            "  longest streak   {:>4} {unit}\n",
-            s.longest_streak
-        ));
-        out.append_plain(format!(
-            "  completed        {:>4} time{}\n",
-            s.total,
-            if s.total == 1 { "" } else { "s" }
-        ));
-        out.append_plain(format!("  completion rate  {:>4} %\n\n", s.completion_rate));
+        out.append_styled("  goal             ", inactive_style);
+        out.append_plain(format!("{goal:>4} per {}\n\n", habit.period()));
+        let times = if s.total == 1 { "time" } else { "times" };
+        for (label, value, unit) in [
+            ("current streak", s.current_streak, unit),
+            ("longest streak", s.longest_streak, unit),
+            ("completed", s.total, times),
+            ("completion rate", s.completion_rate, "%"),
+        ] {
+            out.append_styled(format!("  {label:<17}"), inactive_style);
+            let style = if value > 0 {
+                reached_style
+            } else {
+                inactive_style
+            };
+            out.append_styled(format!("{value:>4}"), style);
+            out.append_plain(format!(" {unit}\n"));
+        }
+        out.append_plain("\n");
 
         // ---- trailing-year heatmap ----
         const WEEKS: u64 = 53;
@@ -245,25 +245,28 @@ impl App {
 
         // month-label row: drop each month's abbreviation at the column where
         // that month first appears
-        let mut label = " ".repeat(GUTTER);
-        let mut prev_month = 0u32;
+        let mut starts: Vec<(usize, u32)> = Vec::new();
         for w in 0..WEEKS {
             let m = week_monday(w).month();
-            if m != prev_month {
-                let pos = GUTTER + w as usize;
-                if label.len() < pos {
-                    label.push_str(&" ".repeat(pos - label.len()));
-                }
-                label.truncate(pos);
-                label.push_str(month_abbr(m));
-                prev_month = m;
+            if starts.last().is_none_or(|&(_, prev)| prev != m) {
+                starts.push((GUTTER + w as usize, m));
             }
         }
-        out.append_plain(format!("{label}\n"));
+        let mut label = String::new();
+        for (i, &(pos, m)) in starts.iter().enumerate() {
+            // a month with too few columns before the next one gets no label
+            if starts.get(i + 1).is_some_and(|&(next, _)| next < pos + 4) {
+                continue;
+            }
+            label.push_str(&" ".repeat(pos.saturating_sub(label.len())));
+            label.push_str(month_abbr(m));
+        }
+        out.append_styled(format!("{label}\n"), inactive_style);
 
+        let cell = CONFIGURATION.look.heat_chr.to_string();
         let weekday_labels = ["Mon", "   ", "Wed", "   ", "Fri", "   ", "Sun"];
         for row in 0..7u64 {
-            out.append_plain(format!("{} ", weekday_labels[row as usize]));
+            out.append_styled(format!("{} ", weekday_labels[row as usize]), inactive_style);
             for w in 0..WEEKS {
                 let date = week_monday(w)
                     .checked_add_days(Days::new(row))
@@ -272,56 +275,60 @@ impl App {
                     out.append_plain(" ");
                     continue;
                 }
-                let (glyph, style) = if is_reached(date) {
-                    ("█", reached_style)
+                let style = if is_reached(date) {
+                    Style::from(accent)
                 } else if goal > 0 && habit.remaining(date) < goal {
-                    ("▒", todo_style) // some progress, goal not met
+                    let ratio = f64::from(goal - habit.remaining(date)) / f64::from(goal);
+                    Style::from(progress_color(accent, todo, ratio))
                 } else {
-                    ("░", inactive_style) // missed or no data
+                    inactive_style // missed or no data
                 };
-                out.append_styled(glyph, style);
+                out.append_styled(cell.as_str(), style);
             }
             out.append_plain("\n");
         }
 
         // ---- legend ----
-        out.append_plain("\n  ");
-        out.append_styled("█", reached_style);
+        out.append_plain("\n    ");
+        out.append_styled(cell.as_str(), Style::from(accent));
         out.append_plain(" done   ");
-        out.append_styled("▒", todo_style);
+        out.append_styled(
+            cell.as_str(),
+            Style::from(progress_color(accent, todo, 0.5)),
+        );
         out.append_plain(" partial   ");
-        out.append_styled("░", inactive_style);
+        out.append_styled(cell.as_str(), inactive_style);
         out.append_plain(" missed");
 
         Some((habit.name().to_owned(), out))
     }
 
-    pub fn max_size(&self) -> Vec2 {
-        let width = GRID_WIDTH * VIEW_WIDTH;
-        let height = {
-            if !self.habits.is_empty() {
-                (VIEW_HEIGHT as f64 * (self.habits.len() as f64 / GRID_WIDTH as f64).ceil())
-                    as usize
-            } else {
-                0
-            }
-        };
-        Vec2::new(width, height + 2)
+    /// Width of the whole view. It is at least two cards wide when the
+    /// terminal has room for two, so the status line fits beside one habit.
+    pub fn frame_width(&self) -> usize {
+        let used = self.cols.min(self.habits.len().max(1));
+        utils::grid_width(used.max(self.cols.min(2)))
+    }
+
+    /// Height of the card grid, without the status and message lines.
+    pub fn grid_height(&self) -> usize {
+        if self.habits.is_empty() {
+            return 4; // room for the "no habits yet" hint
+        }
+        self.habits.len().div_ceil(self.cols) * VIEW_HEIGHT
     }
 
     pub fn load_state() -> Result<Self, String> {
         let regular_f = utils::habit_file()?;
         let read_from_file = |file: PathBuf| -> Result<Vec<Box<dyn HabitWrapper>>, String> {
-            match File::open(file) {
-                Ok(ref mut f) => {
-                    let mut j = String::new();
-                    f.read_to_string(&mut j)
-                        .map_err(|e| format!("Failed to read habit file: `{e}`"))?;
-                    serde_json::from_str(&j)
-                        .map_err(|e| format!("Failed to parse habit file: `{e}`"))
-                }
+            match std::fs::read_to_string(file) {
+                Ok(j) => serde_json::from_str(&j)
+                    .map_err(|e| format!("Failed to parse habit file: `{e}`")),
                 // No file yet: a fresh start, not an error.
-                Err(_) => Ok(Vec::new()),
+                Err(e) if e.kind() == ErrorKind::NotFound => Ok(Vec::new()),
+                // Any other failure must not look like an empty record, or the
+                // save on exit would replace the real one.
+                Err(e) => Err(format!("Failed to read habit file: `{e}`")),
             }
         };
 
@@ -349,26 +356,7 @@ impl App {
         let j = serde_json::to_string_pretty(&o)
             .map_err(|e| format!("could not serialize habits: {e}"))?;
 
-        // Write to a sibling temp file, then atomically rename it over the
-        // target. A crash mid-write leaves the original file untouched instead
-        // of truncated.
-        let file_name = file
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("habit_record.json");
-        let tmp = file.with_file_name(format!("{file_name}.tmp"));
-
-        let mut f = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&tmp)
-            .map_err(|e| format!("could not open habit file for writing: {e}"))?;
-        f.write_all(j.as_bytes())
-            .map_err(|e| format!("could not write habit file: {e}"))?;
-        std::fs::rename(&tmp, &file).map_err(|e| format!("could not save habit file: {e}"))?;
-
-        Ok(())
+        utils::write_atomic(&file, j.as_bytes())
     }
 
     pub fn archive_habits(&mut self) {
@@ -438,56 +426,75 @@ impl App {
             }
         }
 
-        // Write archived habits to files
-        let archive_path = match utils::archive_dir() {
-            Ok(p) => p,
+        // Write archived habits to files. Nothing is removed from the live
+        // record until every archive file is safely on disk.
+        let written = utils::archive_dir().and_then(|archive_path| {
+            for ((month, year), habits) in &habits_by_month {
+                // Create a date for this month to get the month name
+                let date = NaiveDate::from_ymd_opt(*year, *month, 1)
+                    .ok_or_else(|| format!("invalid month {month}/{year}"))?;
+                let month_name = date.format("%b").to_string().to_lowercase();
+                let file_path = archive_path.join(format!("{month_name}_{year}.json"));
+
+                // A month that was archived before keeps its entries: the new
+                // ones are merged into the file instead of replacing it.
+                let existing = match std::fs::read_to_string(&file_path) {
+                    Ok(j) => serde_json::from_str(&j).map_err(|e| {
+                        format!("could not parse archive {}: {e}", file_path.display())
+                    })?,
+                    Err(e) if e.kind() == ErrorKind::NotFound => Vec::new(),
+                    Err(e) => {
+                        return Err(format!(
+                            "could not read archive {}: {e}",
+                            file_path.display()
+                        ));
+                    }
+                };
+
+                let mut o = serde_json::json!(utils::merge_archive(existing, habits.clone()));
+                o.sort_all_objects();
+                let j = serde_json::to_string_pretty(&o)
+                    .map_err(|e| format!("could not serialize archive: {e}"))?;
+                utils::write_atomic(&file_path, j.as_bytes())?;
+            }
+            Ok(habits_by_month.len())
+        });
+        let archived_count = match written {
+            Ok(n) => n,
             Err(e) => {
                 self.message.set_kind(MessageKind::Error);
                 self.message.set_message(e);
                 return;
             }
         };
-        let mut archived_count = 0;
 
-        for ((month, year), habits) in habits_by_month.iter() {
-            // Create a date for this month to get the month name
-            let date = NaiveDate::from_ymd_opt(*year, *month, 1)
-                .unwrap_or_else(|| NaiveDate::from_ymd_opt(2000, 1, 1).unwrap());
-            let month_name = date.format("%b").to_string().to_lowercase();
-
-            let filename = format!("{}_{}.json", month_name, year);
-            let mut file_path = archive_path.clone();
-            file_path.push(filename);
-
-            let mut o = serde_json::json!(habits);
-            o.sort_all_objects();
-            let j = serde_json::to_string_pretty(&o).unwrap();
-
-            match OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(file_path)
-            {
-                Ok(ref mut f) => {
-                    f.write_all(j.as_bytes()).unwrap();
-                    archived_count += 1;
-                }
-                Err(_) => {
+        // Update habits with current month data only. The habits keep their
+        // order, so each one takes its view state back by position.
+        let trimmed: Vec<Box<dyn HabitWrapper>> =
+            match serde_json::from_value(serde_json::Value::Array(current_month_habits)) {
+                Ok(h) => h,
+                Err(e) => {
                     self.message.set_kind(MessageKind::Error);
-                    self.message.set_message("Failed to write archive file");
+                    self.message
+                        .set_message(format!("could not trim the archived habits: {e}"));
                     return;
                 }
+            };
+        let archived = utils::load_archived_reached_goals();
+        let old = std::mem::replace(&mut self.habits, trimmed);
+        for (habit, old) in self.habits.iter_mut().zip(old) {
+            let dates = archived.get(habit.name()).cloned();
+            let data = habit.inner_data_mut_ref();
+            data.cursor = old.inner_data_ref().cursor;
+            data.view_mode = old.inner_data_ref().view_mode;
+            if let Some(dates) = dates {
+                data.archived_reached = dates;
             }
         }
 
-        // Update habits with current month data only
-        self.habits = serde_json::from_value(serde_json::Value::Array(current_month_habits))
-            .unwrap_or_else(|_| Vec::new());
-
         if archived_count > 0 {
             self.message
-                .set_message(format!("Archived {} month(s) of habits", archived_count));
+                .set_message(format!("Archived {archived_count} month(s) of habits"));
         } else {
             self.message.set_message("No old months to archive");
         }

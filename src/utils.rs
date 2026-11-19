@@ -6,11 +6,40 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-pub const VIEW_WIDTH: usize = 30;
+/// Width of the area inside a habit card (31 fits the longest month in the
+/// sparkline view, one column per day).
+pub const VIEW_WIDTH: usize = 31;
+/// Height of a habit card, borders included.
 pub const VIEW_HEIGHT: usize = 10;
+/// Width of a habit card, borders included.
+pub const CARD_WIDTH: usize = VIEW_WIDTH + 2;
+/// Blank columns between two cards.
+pub const CARD_GAP: usize = 1;
+/// The most cards in one row; a narrow terminal gets fewer.
 pub const GRID_WIDTH: usize = 3;
+
+/// Width of `cols` cards side by side.
+pub fn grid_width(cols: usize) -> usize {
+    cols * CARD_WIDTH + cols.saturating_sub(1) * CARD_GAP
+}
+
+/// Write `contents` to `path` through a sibling temp file and a rename, so a
+/// crash mid-write leaves the old file intact instead of truncated.
+pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), String> {
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| format!("invalid file name: {}", path.display()))?;
+    let tmp = path.with_file_name(format!("{name}.tmp"));
+    let mut f =
+        File::create(&tmp).map_err(|e| format!("could not open {name} for writing: {e}"))?;
+    f.write_all(contents)
+        .and_then(|()| f.sync_all())
+        .map_err(|e| format!("could not write {name}: {e}"))?;
+    fs::rename(&tmp, path).map_err(|e| format!("could not save {name}: {e}"))
+}
 
 /// The Monday and Sunday bounding the ISO-style week that contains `date`.
 /// Used by weekly-goal habits to aggregate a week's entries.
@@ -31,6 +60,13 @@ pub struct Characters {
     pub future_chr: char,
     #[serde(default = "base_char")]
     pub missing_chr: char,
+    /// One cell of the heatmap grids.
+    #[serde(default = "heat_char")]
+    pub heat_chr: char,
+}
+
+fn heat_char() -> char {
+    '■'
 }
 
 fn base_char() -> char {
@@ -40,40 +76,56 @@ fn base_char() -> char {
 impl Default for Characters {
     fn default() -> Self {
         Characters {
-            true_chr: '+',
-            false_chr: '-',
-            future_chr: '.',
-            missing_chr: '?',
+            true_chr: '●',
+            false_chr: '○',
+            future_chr: '·',
+            missing_chr: '○',
+            heat_chr: heat_char(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Colors {
-    #[serde(default = "cyan")]
+    /// Reached days, when `accents` is empty.
+    #[serde(default = "reached")]
     pub reached: String,
-    #[serde(default = "magenta")]
+    /// Days with some progress that did not reach the goal.
+    #[serde(default = "todo")]
     pub todo: String,
-    #[serde(default = "light_black")]
+    /// Borders of unfocused cards, empty days, labels.
+    #[serde(default = "inactive")]
     pub inactive: String,
+    /// One color per habit, used in turn. An empty list gives every habit the
+    /// `reached` color.
+    #[serde(default = "accents")]
+    pub accents: Vec<String>,
 }
 
-fn cyan() -> String {
-    "cyan".into()
+fn reached() -> String {
+    "#a6e3a1".into()
 }
-fn magenta() -> String {
-    "magenta".into()
+fn todo() -> String {
+    "#f9e2af".into()
 }
-fn light_black() -> String {
+fn inactive() -> String {
     "light black".into()
+}
+fn accents() -> Vec<String> {
+    [
+        "#89b4fa", "#a6e3a1", "#fab387", "#cba6f7", "#94e2d5", "#f5c2e7", "#f9e2af", "#f38ba8",
+    ]
+    .map(String::from)
+    .to_vec()
 }
 
 impl Default for Colors {
     fn default() -> Self {
         Colors {
-            reached: cyan(),
-            todo: magenta(),
-            inactive: light_black(),
+            reached: reached(),
+            todo: todo(),
+            inactive: inactive(),
+            accents: accents(),
         }
     }
 }
@@ -89,14 +141,26 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn reached_color(&self) -> Color {
-        Color::parse(&self.colors.reached).unwrap_or(Color::Dark(BaseColor::Cyan))
+        parse_color(&self.colors.reached, Color::Light(BaseColor::Green))
     }
     pub fn todo_color(&self) -> Color {
-        Color::parse(&self.colors.todo).unwrap_or(Color::Dark(BaseColor::Magenta))
+        parse_color(&self.colors.todo, Color::Light(BaseColor::Yellow))
     }
     pub fn inactive_color(&self) -> Color {
-        Color::parse(&self.colors.inactive).unwrap_or(Color::Light(BaseColor::Black))
+        parse_color(&self.colors.inactive, Color::Light(BaseColor::Black))
     }
+    /// The color of the habit at position `idx` in the grid.
+    pub fn accent(&self, idx: usize) -> Color {
+        let accents = &self.colors.accents;
+        if accents.is_empty() {
+            return self.reached_color();
+        }
+        parse_color(&accents[idx % accents.len()], self.reached_color())
+    }
+}
+
+fn parse_color(value: &str, fallback: Color) -> Color {
+    crate::theme::displayable(Color::parse(value).unwrap_or(fallback))
 }
 
 /// Load the user config, falling back to defaults on any problem.
@@ -209,6 +273,35 @@ pub fn load_archived_reached_goals() -> HashMap<String, HashSet<NaiveDate>> {
     result
 }
 
+/// Merge the habits of a new archive run into the habits already stored in an
+/// archive file of the same month. A habit present in both keeps its old
+/// entries and takes the new ones (a new entry wins on the same day); its other
+/// fields come from the new copy, which is the more recent one.
+pub fn merge_archive(
+    mut existing: Vec<serde_json::Value>,
+    new: Vec<serde_json::Value>,
+) -> Vec<serde_json::Value> {
+    for mut habit in new {
+        let name = habit.get("name").cloned();
+        let Some(old) = existing
+            .iter_mut()
+            .find(|h| name.is_some() && h.get("name") == name.as_ref())
+        else {
+            existing.push(habit);
+            continue;
+        };
+        if let Some(old_stats) = old.get("stats").and_then(|s| s.as_object()) {
+            let mut stats = old_stats.clone();
+            if let Some(new_stats) = habit.get("stats").and_then(|s| s.as_object()) {
+                stats.extend(new_stats.clone());
+            }
+            habit["stats"] = serde_json::Value::Object(stats);
+        }
+        *old = habit;
+    }
+    existing
+}
+
 /// The reached-goal dates recorded in one archived habit's JSON blob.
 ///
 /// Pure so it can be unit-tested without touching the filesystem. Daily habits
@@ -298,6 +391,41 @@ mod tests {
 
     fn reached(habit: serde_json::Value) -> HashSet<NaiveDate> {
         archived_reached_dates(&habit).into_iter().collect()
+    }
+
+    #[test]
+    fn merge_archive_keeps_the_entries_of_an_earlier_run() {
+        let existing = vec![
+            json!({"type": "Count", "name": "gym", "goal": 1,
+                   "stats": {"2024-01-01": 1, "2024-01-02": 1}}),
+            json!({"type": "Count", "name": "gone", "goal": 1, "stats": {"2024-01-05": 1}}),
+        ];
+        let new = vec![
+            json!({"type": "Count", "name": "gym", "goal": 2,
+                   "stats": {"2024-01-02": 3, "2024-01-09": 1}}),
+            json!({"type": "Count", "name": "new", "goal": 1, "stats": {"2024-01-03": 1}}),
+        ];
+        let merged = merge_archive(existing, new);
+        assert_eq!(merged.len(), 3);
+        assert_eq!(
+            merged[0],
+            json!({"type": "Count", "name": "gym", "goal": 2,
+                   "stats": {"2024-01-01": 1, "2024-01-02": 3, "2024-01-09": 1}})
+        );
+        assert_eq!(merged[1]["name"], "gone");
+        assert_eq!(merged[2]["name"], "new");
+    }
+
+    #[test]
+    fn write_atomic_replaces_the_file_and_leaves_no_temp_file() {
+        let dir = std::env::temp_dir().join(format!("dijo-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("record.json");
+        write_atomic(&path, b"old").unwrap();
+        write_atomic(&path, b"new").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "new");
+        assert!(!dir.join("record.json.tmp").exists());
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

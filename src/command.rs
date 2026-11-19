@@ -3,13 +3,12 @@ use std::str::FromStr;
 
 use cursive::Cursive;
 use cursive::event::{Event, EventResult, Key};
-use cursive::theme::{BaseColor, Color, ColorStyle};
+use cursive::theme::{Color, ColorStyle};
 use cursive::view::Resizable;
 use cursive::views::{Dialog, EditView, LinearLayout, OnEventView, TextView};
 
 use crate::app::App;
 use crate::habit::GoalPeriod;
-use crate::utils::{GRID_WIDTH, VIEW_WIDTH};
 
 static COMMANDS: &[&str] = &[
     "add",
@@ -39,7 +38,10 @@ pub fn open_command_window(s: &mut Cursive) {
     let habit_list: Vec<String> = s
         .call_on_name("Main", |view: &mut App| view.list_habits())
         .unwrap();
-    let style = ColorStyle::new(Color::Dark(BaseColor::Black), Color::Dark(BaseColor::White));
+    let width = s
+        .call_on_name("Main", |view: &mut App| view.frame_width())
+        .unwrap_or(0);
+    let style = ColorStyle::new(Color::TerminalDefault, Color::TerminalDefault);
     let command_window = OnEventView::new(
         EditView::new()
             .filler(" ")
@@ -68,7 +70,7 @@ pub fn open_command_window(s: &mut Cursive) {
             }
         },
     )
-    .fixed_width(VIEW_WIDTH * GRID_WIDTH);
+    .fixed_width(width.saturating_sub(1));
     s.call_on_name("Frame", |view: &mut LinearLayout| {
         let mut commandline = LinearLayout::horizontal()
             .child(TextView::new(":"))

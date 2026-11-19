@@ -3,6 +3,7 @@ name = "dijo"
 version = "1.5.0"
 authors = ["Parham Alvani <parham.alvani@gmail.com>", "Akshay <nerdy@peppe.rs>"]
 edition = "2024"
+rust-version = "1.88"
 description = "Scriptable, curses-based, digital habit tracker"
 homepage = "https://github.com/1995parham/dijo"
 repository = "https://github.com/1995parham/dijo"
@@ -12,11 +13,9 @@ categories = ["date-and-time", "command-line-interface"]
 license = "MIT"
 
 [dependencies]
-erased-serde = "0.4"
 typetag = "0.2.23"
 directories = "6.0.0"
 toml = "1.2.1"
-syn = "3"
 cursive = "0.21"
 
 [dependencies.chrono]
@@ -34,3 +33,11 @@ features = ["preserve_order"]
 [dependencies.clap]
 version = "4.6"
 features = ["cargo"]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
