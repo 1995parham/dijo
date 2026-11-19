@@ -1,148 +1,164 @@
 <p align="center">
-  <img height="200" src="./.github/assests/lz.png">
+  <img height="160" alt="dijo" src="./.github/assets/logo.svg">
 </p>
 
-### About
+# dijo
 
-`dijo` is a habit tracker. It is curses-based, it runs in
-your terminal. `dijo` is scriptable, hook it up with external programs
-to track events without moving a finger. `dijo` is modal,
-much like a certain text editor.
+`dijo` is a habit tracker that runs in your terminal. It is modal and keyboard-driven, much like a certain text editor: you move with `hjkl`, change the view with `v`, and type commands after `:`.
 
-### Features
+This repository is the [1995parham](https://github.com/1995parham/dijo) fork of [nerdypepper/dijo](https://github.com/nerdypepper/dijo). It adds weekly goals, habit descriptions, the sparkline, stats and heatmap views, a dashboard for each habit, and monthly archives.
 
-- **Vim like motions**: navigate `dijo` with `hjkl`!
-- **`dijo` is modal**: cycle a habit through `DAY`, `WEEK`,
-  `MONTH`, `YEAR`, `STATS` and `HEATMAP` views with `v`!
-- **Contribution heatmap**: a GitHub-style grid of your
-  streaks, right in the terminal.
-- **Full-screen dashboard**: press `d` for an at-a-glance
-  summary of the focused habit — all-time stats and a
-  year-long heatmap.
-- **Vim like command mode**: add with `:add`, delete with
-  `:delete` and above all, quit with `:q`!.
-- **Fully scriptable**
+## Features
 
-### Install
+- **A card for each habit**: each habit has its own color, and the top border shows the progress of today. The grid uses as many columns as the terminal has room for, up to three.
+- **Vim-like motions**: move between habits with `hjkl` and move the day cursor with `HJKL`.
+- **Seven views**: cycle every habit through `DAY`, `WEEK`, `MONTH`, `SPARKLINE`, `YEAR`, `STATS` and `HEATMAP` with `v`.
+- **Daily and weekly goals**: track a yes/no habit, a count, or a decimal amount, each day or each Monday-to-Sunday week.
+- **Contribution heatmap**: a GitHub-style grid of your history, which includes the archived months.
+- **Dashboard**: press `d` for the all-time stats and a year-long heatmap of the focused habit.
+- **Vim-like command mode**: add a habit with `:add`, delete one with `:delete`, and quit with `:q`. `Tab` completes command names and habit names.
+- **Themes**: set the characters, the colors and the list of habit colors in `config.toml`.
 
-To get the latest release of `dijo`, prefer installing it
-via `cargo`. You can also browse the
-[Releases](https://github.com/1995parham/dijo/releases)
-page for prebuilt binaries (Linux, macOS and Windows).
+## Install
 
-#### Cargo
+### Prebuilt binaries
+
+Download the archive for your platform from the [Releases](https://github.com/1995parham/dijo/releases) page. Each archive contains the `dijo` binary, this README and the man page `dijo.1`. The releases cover Linux (x86_64), macOS (x86_64 and aarch64) and Windows (x86_64).
+
+### Cargo
+
+`dijo` uses the Rust 2024 edition, so you need a recent stable toolchain.
 
 ```shell
-# dijo is built with the Rust 2024 edition; use a recent stable toolchain
-$ rustup update
-
-$ cargo install dijo
+rustup update
+cargo install --git https://github.com/1995parham/dijo
 ```
 
-### Usage
+`cargo install dijo` installs the upstream crate from crates.io, which does not have the features of this fork.
 
-Run `dijo` to open the grid of habits. The bundled man page
-([`dijo.1`](./dijo.1)) covers everything in detail; here is the
-short version.
+## Usage
 
-#### Views
+Run `dijo` to open the grid of habits. `dijo` writes the habits to disk when you quit. The man page ([`dijo.1`](./dijo.1)) has the full reference.
 
-Press `v` to cycle the view for every habit; `Esc` returns to
-`DAY` and resets the cursor.
-
-| View      | Shows                                                       |
-| --------- | ---------------------------------------------------------- |
-| `DAY`     | every day of the month as a grid                           |
-| `WEEK`    | weekly completion bars                                      |
-| `MONTH`   | per-month completion for the year                          |
-| `YEAR`    | per-year completion bars                                    |
-| `STATS`   | current/longest streak, total completions, completion rate |
-| `HEATMAP` | a contribution grid of trailing weeks (`[` `]` to scroll)  |
-
-#### Keybindings
-
-| Key             | Action                                  |
-| --------------- | --------------------------------------- |
-| `h` `j` `k` `l` | move focus between habits               |
-| `H` `J` `K` `L` | move the day cursor                     |
-| `n` / `Enter`   | increment today (`+1`)                  |
-| `p` / `Backspace` | decrement today (`-1`)                |
-| `v`             | cycle the view mode                     |
-| `d`             | open the focused habit's dashboard      |
-| `[` `]`         | sift to the previous / next month       |
-| `Esc`           | reset view and cursor                   |
-| `:`             | enter command mode                      |
-
-#### Commands
-
-`:add <name> [goal]`, `:describe <name> <text...>` / `:desc`,
-`:delete <name>`, `:month-prev` / `:mprev`,
-`:month-next` / `:mnext`, `:archive`, `:dashboard` / `:dash`,
-`:write` / `:w`, `:quit` / `:q`, `:writeandquit` / `:wq`,
-`:help [<command>|commands|keys]`.
-
-## Design Notes
-
-habit:
-
-```
-type: bit/count
-stats:
-  year:
-    month:
-      bit:
-      |-- dates - array
-      count:
-      |-- dates - k,v pairs
+```shell
+dijo                  # open the habit grid
+dijo --list           # print the names of the habits
+dijo --missing gym    # print the days of this month that have no entry for `gym`
 ```
 
-habit:
--type: `bit/count`
--stats: `k,v (dates, bit/count)`
+### Habits and goals
 
-Cycle habit type:
+Add a habit in command mode with `:add <name> [goal]`. The goal sets the type of the habit.
 
-- `n` states
-- cycles through states on `prev` `next` events
-- represent by symbol/char
-- `ser` to `usize`?
+| Command | Habit |
+| --- | --- |
+| `:add read 1` | a yes/no habit for each day |
+| `:add water 8` | a count with a goal of 8 each day |
+| `:add run 2.5` | a decimal amount with a goal of 2.5 each day |
+| `:add gym 3/week` | a count with a goal of 3 each week (also `/w` and `/weekly`) |
+| `:add coffee` | a count with no goal, only to record a number |
 
-Modes:
+A weekly goal counts all the entries from Monday to Sunday. The streaks and the completion rate of a weekly habit count weeks, not days.
 
-- Day mode - shows all days of 1 month
-  - shift months on Previous/Next
-- Week mode?
-  - Aggregate stats for 1 week
-  - show 4 weeks per view
-  - bar graph for count and bit
+`:describe <name> <text...>` adds a description to a habit. The grid shows the first line of the description, and `i` shows the full text. Write `\n` in the text to start a new line.
 
-Command mode:
+### Views
 
-- Add command
-  - `add <name> <type> <goal>`
-  - `add <name> --type <type> [--goal <goal>]`
-  - Interactive add command via questionnaire?
-- Edit command?
-  - `edit <name> <new-type> <new-goal>`
-  - `edit <name> --goal <new-goal>`
-  - `edit <name> --type <new-type>`
-  - Interactive edit command via questionnaire?
-- Delete command
-  - `delete <name>`
-  - `delete _ (deletes focused?)`
-- Chronological nav:
-  - `month-prev` `mprev`
-  - `month-next` `mnext`
+Press `v` to cycle the view for every habit. `Esc` goes back to `DAY` and resets the cursor.
 
-Interface:
+| View | Shows |
+| --- | --- |
+| `DAY` | the month as a calendar, with the value of each day |
+| `WEEK` | a completion bar for each week of the month |
+| `MONTH` | the completion of each month of the year |
+| `SPARKLINE` | the month in one row, with a bar for each day whose height follows the completion of that day |
+| `YEAR` | a completion bar for each year |
+| `STATS` | the current streak, the longest streak, the total completions and the completion rate |
+| `HEATMAP` | a contribution grid of the trailing weeks (`[` and `]` scroll it) |
 
-- Move view port if focused view goes outside bounds
-- Tab completion for command mode? Requires Lex table
-- Move command window to bottom, styling
-- Prefix command window with `:`
+### Keybindings
 
-Undo-tree:
+| Key | Action |
+| --- | --- |
+| `h` `j` `k` `l` or the arrow keys | move the focus between habits |
+| `Tab` / `Shift-Tab` | move the focus to the next / previous habit |
+| `H` `J` `K` `L` or `Shift` with an arrow key | move the day cursor |
+| `n` / `Enter` / `Ctrl-a` | add one to the day under the cursor |
+| `p` / `Backspace` / `Ctrl-x` | subtract one from the day under the cursor |
+| `v` | cycle the view |
+| `d` | open the dashboard of the focused habit (`q` or `Esc` closes it) |
+| `i` | show the full description of the focused habit (`q` or `Esc` closes it) |
+| `[` `]` | go to the previous / next month |
+| `}` | move the cursor back to today |
+| `Esc` | go back to the `DAY` view and reset the cursor |
+| `Ctrl-l` | clear the message line |
+| `:` | open command mode |
 
-- Store app states in memory
-- Should store diffs? Or entire state?
-- Ideal undo depth limit?
+### Commands
+
+| Command | Alias | Action |
+| --- | --- | --- |
+| `:add <name> [goal]` | `:a` | add a habit |
+| `:describe <name> <text...>` | `:desc` | set the description of a habit |
+| `:delete <name>` | `:d` | delete a habit |
+| `:month-prev` | `:mprev` | go to the previous month |
+| `:month-next` | `:mnext` | go to the next month |
+| `:archive` | | move the entries of past months to the archive |
+| `:dashboard` | `:dash` | open the dashboard of the focused habit |
+| `:write` | `:w` | write the habits to disk |
+| `:quit` | `:q` | write the habits to disk and quit |
+| `:writeandquit` | `:wq` | write the habits to disk and quit |
+| `:help [<command>\|commands\|keys]` | `:h`, `:?` | show help in the message line |
+
+## Files
+
+`dijo` keeps the habits in `habit_record.json` in the data directory and the settings in `config.toml` in the configuration directory. `:archive` writes the entries of each past month to `archive/{month}_{year}.json` in the data directory. The stats and the heatmap continue to count the archived days.
+
+| Platform | Configuration directory | Data directory |
+| --- | --- | --- |
+| Linux | `~/.config/dijo` | `~/.local/share/dijo` |
+| macOS | `~/Library/Application Support/rs.nerdypepper.dijo` | `~/Library/Application Support/rs.nerdypepper.dijo` |
+| Windows | `%APPDATA%\nerdypepper\dijo\config` | `%APPDATA%\nerdypepper\dijo\data` |
+
+### Configuration
+
+`dijo` writes a default `config.toml` on the first run. If the file is missing or invalid, `dijo` uses the defaults.
+
+```toml
+[look]
+true_chr = "●"      # a yes/no habit that is done
+false_chr = "○"     # a yes/no habit that is not done
+future_chr = "·"    # a day in the future
+missing_chr = "○"   # a past day with no entry
+heat_chr = "■"      # one cell of the heatmap
+
+[colors]
+reached = "#a6e3a1"
+todo = "#f9e2af"
+inactive = "light black"
+accents = ["#89b4fa", "#a6e3a1", "#fab387", "#cba6f7", "#94e2d5", "#f5c2e7", "#f9e2af", "#f38ba8"]
+```
+
+A color is a name such as `cyan` or `light black`, or a hex value such as `#ff8800`.
+
+Each habit takes one color from `accents` in turn. The habit uses that color for its card, its reached days and its bars, and a darker shade of it for a day with partial progress. If `accents` is an empty list, all habits use `reached`. `todo` is the color of partial progress when the habit color is a name and thus has no shades. `inactive` is the color of unfocused cards, labels and empty days.
+
+If the terminal does not announce true color support (`COLORTERM` is not `truecolor` or `24bit`), `dijo` replaces each hex color with the nearest bright base color.
+
+A `config.toml` from an older version keeps its old characters and colors. To get the new look, delete the file or edit it.
+
+## Development
+
+CI runs these three checks on every push. Run them before you commit.
+
+```shell
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+```
+
+A tag of the form `v*.*.*` starts the release workflow, which builds the binaries and publishes a GitHub Release.
+
+## License
+
+`dijo` is under the [MIT license](./LICENSE).

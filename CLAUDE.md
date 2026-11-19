@@ -11,7 +11,7 @@ the easiest check to trip:
 
 ```sh
 cargo fmt --all -- --check    # CI fails if code isn't rustfmt'd (use `cargo fmt` to fix)
-cargo clippy -- -D warnings   # warnings are hard errors in CI
+cargo clippy --all-targets -- -D warnings   # warnings are hard errors in CI
 cargo test
 ```
 
@@ -27,8 +27,13 @@ cargo test
     (`on_event`, including the `v` view cycle and the `d` dashboard hotkey).
 - `src/habit/` — habit types `Bit`, `Count`, `Float` behind the `Habit` +
   `HabitWrapper` traits (typetag-serialized). `ViewMode` lives in `prelude.rs`.
-- `src/views.rs` — `ShadowView`: per-habit rendering for each view mode
-  (day / week / month / year / stats / heatmap).
+- `src/views.rs` — `ShadowView`: the body of a habit card for each view mode
+  (day / week / month / sparkline / year / stats / heatmap). The card frame,
+  title and progress badge are drawn by the grid (`draw_card` in
+  `impl_view.rs`), which passes each habit its accent color.
+- `src/theme.rs` — Cursive theme plus color helpers: `displayable` (RGB →
+  nearest base color without truecolor) and `progress_color` (shades of an
+  accent for partial progress).
 - `src/stats.rs` — pure, unit-tested streak/total/rate math (`habit_stats`),
   reused by the Stats view and the dashboard.
 - `src/utils.rs` — config + filesystem paths, archive scanning.
@@ -53,6 +58,13 @@ Data lives in the platform data dir: `habit_record.json` plus an `archive/` of
 - **Tests**: prefer extracting pure logic (like `stats.rs`) and unit-testing it.
 
 ## Features (key behaviours)
+
+- **Card grid** (`impl_view.rs`): each habit is a rounded card, `CARD_WIDTH` ×
+  `VIEW_HEIGHT`, coloured with `CONFIGURATION.accent(idx)` (the `accents` list
+  in `config.toml`, cycled by grid position). The column count (`App::cols`) is
+  set in `required_size` from the terminal width, 1 to `GRID_WIDTH`.
+- **Visual check**: run the binary in tmux with `HOME` pointed at a scratch
+  directory (never the real data dir) and read `tmux capture-pane -p`.
 
 - View modes cycle with `v`: Day → Week → Month → Sparkline → Year → Stats →
   Heatmap; `Esc` resets to Day. The mode applies to all habits at once.
@@ -96,5 +108,10 @@ line in `dijo.1`, and **confirm CI is green first**.
   per archive *file* (i.e. per month), so a Mon–Sun week straddling a month
   boundary is summed on each side separately. Acceptable given per-month archive
   granularity.
-- Heatmap glyphs/colors are hardcoded; everything else is themeable via
-  `config.toml`.
+- `:archive` merges into an existing archive file (`utils::merge_archive`) and
+  writes atomically (`utils::write_atomic`); the live record is trimmed only
+  after every file is written.
+- The habit model is still trait objects (`typetag`); an enum with
+  `#[serde(tag = "type")]` would read the same JSON and remove the
+  `HabitWrapper`/`ShadowView` traits and macros. View state (`InnerData`) is
+  duplicated per habit and should move to `App`.
