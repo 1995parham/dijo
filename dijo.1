@@ -1,4 +1,4 @@
-.TH DIJO 1 "July 22, 2026" dijo-1.5.0
+.TH DIJO 1 "November 19, 2026" dijo-1.6.0
 
 .SH NAME
 dijo \- digital journal
@@ -72,9 +72,9 @@ To track your progress for the day:
 .IP
 \(bu Hit \fBEnter\fR on the keyboard to increase the value, or \fBBackspace\fR to reduce it.
 .IP
-\(bu Once you reach your daily goal, the day is marked in green and the habit name is struck through with a line.
+\(bu Each habit is a card with its own color. The top border of the card shows the name and the progress of today: a percentage, or a check mark once you reach the goal.
 .PP
-Cycle the display for every habit by pressing \fBv\fR on the keyboard. This steps through \fBDAY\fR, \fBWEEK\fR, \fBMONTH\fR, \fBYEAR\fR, \fBSTATS\fR and \fBHEATMAP\fR modes; press \fB<ESC>\fR to return to \fBDAY\fR mode and reset the cursor. The current mode is indicated on the status line.
+Cycle the display for every habit by pressing \fBv\fR on the keyboard. This steps through \fBDAY\fR, \fBWEEK\fR, \fBMONTH\fR, \fBSPARKLINE\fR, \fBYEAR\fR, \fBSTATS\fR and \fBHEATMAP\fR modes; press \fB<ESC>\fR to return to \fBDAY\fR mode and reset the cursor. The current mode is indicated on the status line.
 .PP
 \fBHEATMAP\fR mode draws a GitHub-style contribution grid (seven weekday rows by a band of trailing weeks) for each habit, shaded by completion. The rightmost column tracks the currently viewed week, so sifting months scrolls the heatmap through history.
 .PP
@@ -103,14 +103,17 @@ The default config file (created on first run) looks something like this, \fBcon
 .nf
 \fB
 [look]
-true_chr = \[dq]\[pc]\[dq]
-false_chr = \[dq]\[pc]\[dq]
-future_chr = \[dq]\[pc]\[dq]
+true_chr = \[dq]●\[dq]
+false_chr = \[dq]○\[dq]
+future_chr = \[dq]·\[dq]
+missing_chr = \[dq]○\[dq]
+heat_chr = \[dq]■\[dq]
 
 [colors]
-reached = \[dq]cyan\[dq]
-todo = \[dq]magenta\[dq]
+reached = \[dq]#a6e3a1\[dq]
+todo = \[dq]#f9e2af\[dq]
 inactive = \[dq]light black\[dq]
+accents = [\[dq]#89b4fa\[dq], \[dq]#a6e3a1\[dq], \[dq]#fab387\[dq], \[dq]#cba6f7\[dq], \[dq]#94e2d5\[dq], \[dq]#f5c2e7\[dq], \[dq]#f9e2af\[dq], \[dq]#f38ba8\[dq]]
 \fR
 .fi
 
@@ -123,18 +126,27 @@ Variables in this section define the characters \fBdijo\fR uses in \fBDAY\fR mod
 .IP 
 \(bu \fBfalse_chr\fR: The character to use in a Bit habit when the goal is \fBnot reached\fR
 .IP 
-\(bu \fBfuture_chr\fR: The character to use in a Bit habit when the day is \fBuntracked\fR.
+\(bu \fBfuture_chr\fR: The character to use for a day \fBin the future\fR.
+.IP 
+\(bu \fBmissing_chr\fR: The character to use for a past day that is \fBuntracked\fR.
+.IP 
+\(bu \fBheat_chr\fR: The character of one cell in \fBHEATMAP\fR mode and in the dashboard.
 
 .SS Colors
 .PP
 Variables in this section define the colors \fBdijo\fR uses in all modes:
 
 .IP 
-\(bu \fBreached\fR: The color to use when the goal is \fBreached\fR for the day. This is also the color used in \fBWEEK\fR mode to fill the progress bar.
+\(bu \fBaccents\fR: A list of colors. Each habit takes one color from the list in turn, and uses it for its card, its reached days and its progress bars. A day with partial progress gets a darker shade of the same color.
 .IP 
-\(bu \fBtodo\fR: The color to use when the goal is \fByet to be reached\fR.
+\(bu \fBreached\fR: The color of every habit when \fBaccents\fR is an empty list.
 .IP 
-\(bu \fBinactive\fR: The color to use for \fBunfocused habits and untracked days\fR.
+\(bu \fBtodo\fR: The color to use when the goal is \fByet to be reached\fR and the habit color has no shades (a color that is not a hex value).
+.IP 
+\(bu \fBinactive\fR: The color to use for \fBunfocused cards, labels and untracked days\fR.
+
+.PP
+On a terminal that does not announce true color support (\fBCOLORTERM\fR is not \fBtruecolor\fR or \fB24bit\fR), \fBdijo\fR replaces each hex color with the nearest of the bright base colors.
 
 .PP
 The values in this section are strings, and may be populated by one of the following:
@@ -168,6 +180,8 @@ Press \fBv\fR to cycle the display for every habit through these views; press \f
 .IP
 \(bu \fBMONTH\fR: per-month completion for the year
 .IP
+\(bu \fBSPARKLINE\fR: the month in one row, with one bar per day
+.IP
 \(bu \fBYEAR\fR: per-year completion bars
 .IP
 \(bu \fBSTATS\fR: streaks, total completions and completion rate
@@ -176,11 +190,11 @@ Press \fBv\fR to cycle the display for every habit through these views; press \f
 .SS \fBDAY\fR mode
 
 .PP
-\fBDAY\fR mode is the default mode for every habit. It shows you every day of the current month. In this mode, counting-type habits display their counts for each day of the month. Bit-type habits (yes/no) display their bits in the form of a \fB\[pc]\fR (U+00B7 Middle Dot). Days whose goals have been reached are displayed in cyan and those that haven\[cq]t been reached are displayed in magenta. Days that haven\[cq]t been tracked are displayed in \[lq]light black\[rq].
+\fBDAY\fR mode is the default mode for every habit. It shows the current month as a calendar, with one column for each day of the week from Monday to Sunday. In this mode, counting-type habits display their counts for each day of the month. Bit-type habits (yes/no) display \fBtrue_chr\fR or \fBfalse_chr\fR. Days whose goals have been reached are displayed in the color of the habit, and days with partial progress in a darker shade of it. Days that haven\[cq]t been tracked are displayed in the \fBinactive\fR color. Today is underlined and the day under the cursor is highlighted.
 
 .SS \fBWEEK\fR mode
 .PP
-\fBWEEK\fR mode is one of the views cycled with \fBv\fR. It shows you a summary of your progress for every week of the month. The current week\[cq]s percentage is indicated in white, other weeks are colored in \[lq]light black\[rq]. The progress for a given week is calculated as follows:
+\fBWEEK\fR mode is one of the views cycled with \fBv\fR. It shows you a summary of your progress for every Monday-to-Sunday week that touches the month. The current week\[cq]s percentage is indicated in white, other weeks are colored in \[lq]light black\[rq]. The progress for a given week is calculated as follows:
 .IP "1." 3
 if the goal is reached for a day of the week, the day contributes
 exactly 14.28% (100/7) towards that week\[cq]s progress.
@@ -244,7 +258,7 @@ Editing
 Modes
 .RS 2
 .IP \(bu 2
-\fBv\fR - cycle the view mode (\fBDAY\fR, \fBWEEK\fR, \fBMONTH\fR, \fBYEAR\fR, \fBSTATS\fR, \fBHEATMAP\fR) for all habits
+\fBv\fR - cycle the view mode (\fBDAY\fR, \fBWEEK\fR, \fBMONTH\fR, \fBSPARKLINE\fR, \fBYEAR\fR, \fBSTATS\fR, \fBHEATMAP\fR) for all habits
 .IP \(bu 2
 \fBd\fR - open the focused habit\[cq]s dashboard \fB[f]\fR
 .IP \(bu 2
