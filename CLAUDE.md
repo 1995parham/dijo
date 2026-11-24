@@ -100,6 +100,10 @@ with `README.md` and `dijo.1`, and publishes a GitHub Release. Before tagging:
 bump `version` in `Cargo.toml` (rebuild to sync `Cargo.lock`), update the `.TH`
 line in `dijo.1`, and **confirm CI is green first**.
 
+After the GitHub release, update the Homebrew tap (`dijo.rb` in
+`1995parham/homebrew-tap`) and the AUR package `dijo-1995parham`. The steps and
+where the AUR key lives are in the vault note `~/org/HowTo/dijo Setup.md`.
+
 ## Known gaps / TODO
 
 - `GoalKind::Addiction` (`:add foo <5`) parses but falls through to a count-0
