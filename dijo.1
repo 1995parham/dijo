@@ -104,7 +104,7 @@ The default config file (created on first run) looks something like this, \fBcon
 \fB
 [look]
 true_chr = \[dq]●\[dq]
-false_chr = \[dq]○\[dq]
+false_chr = \[dq]✕\[dq]
 future_chr = \[dq]·\[dq]
 missing_chr = \[dq]○\[dq]
 heat_chr = \[dq]■\[dq]
@@ -112,6 +112,7 @@ heat_chr = \[dq]■\[dq]
 [colors]
 reached = \[dq]#a6e3a1\[dq]
 todo = \[dq]#f9e2af\[dq]
+undone = \[dq]#f38ba8\[dq]
 inactive = \[dq]light black\[dq]
 accents = [\[dq]#89b4fa\[dq], \[dq]#a6e3a1\[dq], \[dq]#fab387\[dq], \[dq]#cba6f7\[dq], \[dq]#94e2d5\[dq], \[dq]#f5c2e7\[dq], \[dq]#f9e2af\[dq], \[dq]#f38ba8\[dq]]
 \fR
@@ -142,6 +143,8 @@ Variables in this section define the colors \fBdijo\fR uses in all modes:
 \(bu \fBreached\fR: The color of every habit when \fBaccents\fR is an empty list.
 .IP 
 \(bu \fBtodo\fR: The color to use when the goal is \fByet to be reached\fR and the habit color has no shades (a color that is not a hex value).
+.IP 
+\(bu \fBundone\fR: The color to use for a day that is \fBtracked but not done\fR: a Bit habit marked as not done, or a count set back to zero. An untracked day stays in the \fBinactive\fR color.
 .IP 
 \(bu \fBinactive\fR: The color to use for \fBunfocused cards, labels and untracked days\fR.
 
@@ -190,7 +193,7 @@ Press \fBv\fR to cycle the display for every habit through these views; press \f
 .SS \fBDAY\fR mode
 
 .PP
-\fBDAY\fR mode is the default mode for every habit. It shows the current month as a calendar, with one column for each day of the week from Monday to Sunday. In this mode, counting-type habits display their counts for each day of the month. Bit-type habits (yes/no) display \fBtrue_chr\fR or \fBfalse_chr\fR. Days whose goals have been reached are displayed in the color of the habit, and days with partial progress in a darker shade of it. Days that haven\[cq]t been tracked are displayed in the \fBinactive\fR color. Today is underlined and the day under the cursor is highlighted.
+\fBDAY\fR mode is the default mode for every habit. It shows the current month as a calendar, with one column for each day of the week from Monday to Sunday. In this mode, counting-type habits display their counts for each day of the month. Bit-type habits (yes/no) display \fBtrue_chr\fR or \fBfalse_chr\fR. Days whose goals have been reached are displayed in the color of the habit, and days with partial progress in a darker shade of it. Days that are tracked but not done are displayed in the \fBundone\fR color, and days that haven\[cq]t been tracked in the \fBinactive\fR color. Today is underlined and the day under the cursor is highlighted.
 
 .SS \fBWEEK\fR mode
 .PP
