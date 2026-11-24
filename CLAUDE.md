@@ -70,8 +70,12 @@ Data lives in the platform data dir: `habit_record.json` plus an `archive/` of
   Heatmap; `Esc` resets to Day. The mode applies to all habits at once.
 - **Sparkline** (`views.rs`): a compact one-row month view — each day is a bar
   `▁`..`█` whose height tracks that day's completion ratio (`(goal-remaining)/goal`),
-  coloured reached/partial/missed; future days are blank, the cursor day is
-  highlighted.
+  coloured reached/partial/undone; days with no entry are a dim `·`, future
+  days are blank, the cursor day is highlighted.
+- **Undone vs. not filled**: a day with an entry but no progress (a Bit set to
+  "no", a Count back at 0) is *undone* and drawn in `colors.undone`; a past day
+  with no entry is *not filled* and drawn dim (`inactive`). Day, sparkline and
+  heatmap views all keep the two apart (`undone` closure in `views.rs`).
 - **Weekly goals**: a habit's goal carries a `GoalPeriod` (`Daily`/`Weekly`,
   `prelude.rs`), stored per habit with `#[serde(default)]` so old records load as
   daily. `:add gym 3/week` (also `/w`, `/weekly`) makes a `Count`/`Float` whose

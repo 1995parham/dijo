@@ -74,12 +74,19 @@ where
                 f64::from(goal.saturating_sub(self.remaining(date))) / f64::from(goal)
             }
         };
+        // A day with an entry but no progress (a "no", a count of zero) is
+        // undone; it stands apart from a day that has no entry at all.
+        let undone = |date: NaiveDate| -> bool {
+            !weekly && self.get_by_date(date).is_some() && ratio(date) == 0.0
+        };
         let progress_style = |date: NaiveDate| -> Style {
             let r = ratio(date);
             if r >= 1.0 {
                 reached_style
             } else if r > 0.0 {
                 Style::from(progress_color(accent, todo, r))
+            } else if undone(date) {
+                Style::from(CONFIGURATION.undone_color())
             } else {
                 dim
             }
@@ -130,7 +137,7 @@ where
                     None => (format!("{:^3}", CONFIGURATION.look.future_chr), dim),
                 };
                 if self.get_by_date(d).is_some() && ratio(d) == 0.0 {
-                    style = Style::from(todo);
+                    style = Style::from(CONFIGURATION.undone_color());
                 }
                 if d == today {
                     style = style.combine(Effect::Underline);
@@ -236,8 +243,9 @@ where
 
         // A compact one-row month view: each day of the month is a single bar
         // whose height tracks that day's completion ratio. Reached days are
-        // full, partial days sit mid-ramp, missed days show the lowest bar,
-        // and future days are left blank. A scale of day numbers sits below.
+        // full, partial days sit mid-ramp, undone days show the lowest bar in
+        // the undone color, days with no entry a dim dot, and future days are
+        // left blank. A scale of day numbers sits below.
         let draw_sparkline = |printer: &Printer| {
             for (i, d) in days_of(year, month).enumerate() {
                 if d.day() == 1 || d.day() % 5 == 0 {
@@ -250,7 +258,12 @@ where
                 if d == cursor && printer.focused {
                     style = style.combine(Effect::Reverse);
                 }
-                printer.with_style(style, |p| p.print((i, 3), ramp(ratio(d))));
+                let bar = if ratio(d) == 0.0 && !undone(d) {
+                    "·"
+                } else {
+                    ramp(ratio(d))
+                };
+                printer.with_style(style, |p| p.print((i, 3), bar));
             }
         };
 

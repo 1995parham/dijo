@@ -77,7 +77,7 @@ impl Default for Characters {
     fn default() -> Self {
         Characters {
             true_chr: '●',
-            false_chr: '○',
+            false_chr: '✕',
             future_chr: '·',
             missing_chr: '○',
             heat_chr: heat_char(),
@@ -93,7 +93,10 @@ pub struct Colors {
     /// Days with some progress that did not reach the goal.
     #[serde(default = "todo")]
     pub todo: String,
-    /// Borders of unfocused cards, empty days, labels.
+    /// Days with an entry but no progress: a "no" or a count of zero.
+    #[serde(default = "undone")]
+    pub undone: String,
+    /// Borders of unfocused cards, days with no entry, labels.
     #[serde(default = "inactive")]
     pub inactive: String,
     /// One color per habit, used in turn. An empty list gives every habit the
@@ -107,6 +110,9 @@ fn reached() -> String {
 }
 fn todo() -> String {
     "#f9e2af".into()
+}
+fn undone() -> String {
+    "#f38ba8".into()
 }
 fn inactive() -> String {
     "light black".into()
@@ -124,6 +130,7 @@ impl Default for Colors {
         Colors {
             reached: reached(),
             todo: todo(),
+            undone: undone(),
             inactive: inactive(),
             accents: accents(),
         }
@@ -145,6 +152,9 @@ impl AppConfig {
     }
     pub fn todo_color(&self) -> Color {
         parse_color(&self.colors.todo, Color::Light(BaseColor::Yellow))
+    }
+    pub fn undone_color(&self) -> Color {
+        parse_color(&self.colors.undone, Color::Light(BaseColor::Red))
     }
     pub fn inactive_color(&self) -> Color {
         parse_color(&self.colors.inactive, Color::Light(BaseColor::Black))

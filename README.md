@@ -127,7 +127,7 @@ Press `v` to cycle the view for every habit. `Esc` goes back to `DAY` and resets
 ```toml
 [look]
 true_chr = "●"      # a yes/no habit that is done
-false_chr = "○"     # a yes/no habit that is not done
+false_chr = "✕"     # a yes/no habit that is not done
 future_chr = "·"    # a day in the future
 missing_chr = "○"   # a past day with no entry
 heat_chr = "■"      # one cell of the heatmap
@@ -135,13 +135,14 @@ heat_chr = "■"      # one cell of the heatmap
 [colors]
 reached = "#a6e3a1"
 todo = "#f9e2af"
+undone = "#f38ba8"
 inactive = "light black"
 accents = ["#89b4fa", "#a6e3a1", "#fab387", "#cba6f7", "#94e2d5", "#f5c2e7", "#f9e2af", "#f38ba8"]
 ```
 
 A color is a name such as `cyan` or `light black`, or a hex value such as `#ff8800`.
 
-Each habit takes one color from `accents` in turn. The habit uses that color for its card, its reached days and its bars, and a darker shade of it for a day with partial progress. If `accents` is an empty list, all habits use `reached`. `todo` is the color of partial progress when the habit color is a name and thus has no shades. `inactive` is the color of unfocused cards, labels and empty days.
+Each habit takes one color from `accents` in turn. The habit uses that color for its card, its reached days and its bars, and a darker shade of it for a day with partial progress. If `accents` is an empty list, all habits use `reached`. `todo` is the color of partial progress when the habit color is a name and thus has no shades. `undone` is the color of a day with an entry but no progress, for example a yes/no habit marked "no" or a count set back to zero. `inactive` is the color of unfocused cards, labels and days with no entry. Thus a day that you did not fill shows dim, and a day that you marked as not done shows in `undone`.
 
 If the terminal does not announce true color support (`COLORTERM` is not `truecolor` or `24bit`), `dijo` replaces each hex color with the nearest bright base color.
 
