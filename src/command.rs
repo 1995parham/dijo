@@ -63,7 +63,7 @@ pub fn open_command_window(s: &mut Cursive) {
                 let word = contents.split(' ').next_back().unwrap();
                 let completion = get_habit_completion(word, &habit_list);
                 if let Some(c) = completion {
-                    let cb = view.set_content(format!("{contents}") + &c[word.len()..]);
+                    let cb = view.set_content(format!("{contents}{}", &c[word.len()..]));
                     return Some(EventResult::Consumed(Some(cb)));
                 };
                 None
@@ -158,6 +158,10 @@ pub fn open_description(s: &mut Cursive) {
     s.add_layer(view);
 }
 
+/// The most digits after the point in a float goal. The value is kept as a
+/// `u32` scaled by `10^precision`, which overflows above nine digits.
+const MAX_PRECISION: usize = 9;
+
 #[derive(Debug, PartialEq)]
 pub enum GoalKind {
     Count(u32),
@@ -175,15 +179,19 @@ impl FromStr for GoalKind {
                 .parse::<u32>()
                 .map_err(|_| CommandLineError::InvalidGoal(s.into()))
                 .map(GoalKind::Addiction);
-        } else if s.contains(".") {
-            let value = s
-                .chars()
-                .filter(|x| x.is_ascii_digit())
-                .collect::<String>()
+        } else if let Some((whole, fraction)) = s.split_once('.') {
+            let digits = |p: &str| p.chars().all(|c| c.is_ascii_digit());
+            if fraction.is_empty()
+                || fraction.len() > MAX_PRECISION
+                || !digits(whole)
+                || !digits(fraction)
+            {
+                return Err(CommandLineError::InvalidGoal(s.into()));
+            }
+            let value = format!("{whole}{fraction}")
                 .parse::<u32>()
-                .map_err(|_| CommandLineError::InvalidCommand(s.into()))?;
-            let precision = s.chars().skip_while(|&x| x != '.').count() - 1;
-            return Ok(GoalKind::Float(value, precision as u8));
+                .map_err(|_| CommandLineError::InvalidGoal(s.into()))?;
+            return Ok(GoalKind::Float(value, fraction.len() as u8));
         }
         if let Ok(v) = s.parse::<u32>() {
             if v == 1 {
@@ -239,7 +247,7 @@ impl fmt::Display for CommandLineError {
             CommandLineError::InvalidCommand(s) => write!(f, "Invalid command: `{s}`"),
             CommandLineError::InvalidArg(p) => write!(f, "Invalid argument at position {p}"),
             CommandLineError::NotEnoughArgs(s, n) => {
-                write!(f, "Command `{s}` requires atleast {n} argument(s)!")
+                write!(f, "Command `{s}` requires at least {n} argument(s)!")
             }
             CommandLineError::InvalidGoal(s) => write!(f, "Invalid goal expression: `{s}`"),
         }
@@ -252,7 +260,7 @@ impl FromStr for Command {
     type Err = CommandLineError;
 
     fn from_str(input: &str) -> Result<Command> {
-        let mut strings: Vec<&str> = input.trim().split(' ').collect();
+        let mut strings: Vec<&str> = input.split_whitespace().collect();
         if strings.is_empty() {
             return Ok(Command::Blank);
         }
@@ -314,7 +322,6 @@ impl FromStr for Command {
             "w" | "write" => Ok(Command::Write),
             "archive" => Ok(Command::Archive),
             "dashboard" | "dash" => Ok(Command::Dashboard),
-            "" => Ok(Command::Blank),
             s => Err(CommandLineError::InvalidCommand(s.into())),
         }
     }
@@ -390,6 +397,33 @@ mod tests {
             "add floss 1".parse::<Command>().unwrap(),
             Command::Add("floss".into(), Some(GoalKind::Bit), GoalPeriod::Daily)
         );
+    }
+
+    #[test]
+    fn extra_spaces_between_words_are_ignored() {
+        assert_eq!(
+            "  add   gym  3 ".parse::<Command>().unwrap(),
+            Command::Add("gym".into(), Some(GoalKind::Count(3)), GoalPeriod::Daily)
+        );
+    }
+
+    #[test]
+    fn float_goal_keeps_its_precision() {
+        assert_eq!("2.25".parse::<GoalKind>().unwrap(), GoalKind::Float(225, 2));
+        assert_eq!(".5".parse::<GoalKind>().unwrap(), GoalKind::Float(5, 1));
+    }
+
+    #[test]
+    fn malformed_float_goals_are_rejected() {
+        for goal in ["1.2.3", "1.5abc", "1.", ".", "a.5", "1.0000000000"] {
+            assert!(
+                matches!(
+                    goal.parse::<GoalKind>(),
+                    Err(CommandLineError::InvalidGoal(_))
+                ),
+                "goal `{goal}` should be rejected",
+            );
+        }
     }
 
     #[test]
