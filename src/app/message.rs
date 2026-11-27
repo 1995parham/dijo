@@ -50,8 +50,11 @@ impl Message {
     pub fn set_message<S: AsRef<str>>(&mut self, m: S) {
         self.msg = m.as_ref().into();
     }
+    /// Empty the message and go back to the info kind, so the next message
+    /// does not take the color of an earlier error.
     pub fn clear(&mut self) {
-        self.msg.clear()
+        self.msg.clear();
+        self.kind = MessageKind::Info;
     }
 }
 

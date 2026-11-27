@@ -673,6 +673,17 @@ mod tests {
     }
 
     #[test]
+    fn a_new_command_clears_the_error_kind() {
+        let mut app = App::new();
+        app.parse_command(Err(CommandLineError::InvalidCommand("nope".into())));
+        assert!(matches!(app.message.kind(), MessageKind::Error));
+
+        app.clear_message();
+        app.parse_command(Ok(Command::Help(None)));
+        assert!(matches!(app.message.kind(), MessageKind::Info));
+    }
+
+    #[test]
     fn month_abbr_is_one_based_and_bounded() {
         assert_eq!(month_abbr(1), "Jan");
         assert_eq!(month_abbr(12), "Dec");
