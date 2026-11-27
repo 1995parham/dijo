@@ -142,6 +142,20 @@ impl App {
         }
     }
 
+    /// Move the focused habit one place left or right in the grid; the focus
+    /// moves with it. The order is the order of the saved record.
+    pub fn move_focused(&mut self, d: Absolute) {
+        let target = match d {
+            Absolute::Left => self.focus.checked_sub(1),
+            Absolute::Right => Some(self.focus + 1).filter(|&i| i < self.habits.len()),
+            _ => None,
+        };
+        if let Some(target) = target {
+            self.habits.swap(self.focus, target);
+            self.focus = target;
+        }
+    }
+
     pub fn clear_message(&mut self) {
         self.message.clear();
     }
@@ -661,7 +675,7 @@ impl App {
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",
                                 "cmds"  | "commands" => "add, describe, delete, rename, goal, month-{prev,next}, archive, dashboard, help, quit",
-                                "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/sparkline/year/stats/heatmap) | d: dashboard | i: description popup | []: month | Esc: reset",
+                                "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/sparkline/year/stats/heatmap) | d: dashboard | i: description popup | <>: move habit | []: month | Esc: reset",
                                 "wq" =>   "write current state to disk and quit dijo",
                                 _ => "unknown command or help topic.",
                             }
@@ -931,6 +945,21 @@ mod tests {
         app.rename("water", "read");
         assert!(matches!(app.message.kind(), MessageKind::Error));
         assert_eq!(app.habits[1].name(), "water");
+    }
+
+    #[test]
+    fn move_focused_swaps_with_a_neighbour_and_keeps_the_focus() {
+        let (mut app, _) = tracked_app();
+        app.move_focused(Absolute::Left);
+        assert_eq!(app.list_habits()[0], "read", "nothing left of the first");
+
+        app.move_focused(Absolute::Right);
+        assert_eq!(app.list_habits()[..2], ["water", "read"]);
+        assert_eq!(app.focus, 1);
+
+        app.focus = 3;
+        app.move_focused(Absolute::Right);
+        assert_eq!(app.list_habits()[3], "smoke", "nothing right of the last");
     }
 
     #[test]

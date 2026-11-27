@@ -251,6 +251,14 @@ impl View for App {
             /* We want sifting to be an app level function,
              * that later trickles down into each habit
              * */
+            Event::Char('<') => {
+                self.move_focused(Absolute::Left);
+                EventResult::Consumed(None)
+            }
+            Event::Char('>') => {
+                self.move_focused(Absolute::Right);
+                EventResult::Consumed(None)
+            }
             Event::Char(']') => {
                 self.sift_forward();
                 EventResult::Consumed(None)

@@ -97,6 +97,7 @@ Press `v` to cycle the view for every habit. `Esc` goes back to `DAY` and resets
 | `v` | cycle the view |
 | `d` | open the dashboard of the focused habit (`q` or `Esc` closes it) |
 | `i` | show the full description of the focused habit (`q` or `Esc` closes it) |
+| `<` `>` | move the focused habit one place left / right in the grid |
 | `[` `]` | go to the previous / next month |
 | `}` | move the cursor back to today |
 | `Esc` | go back to the `DAY` view and reset the cursor |
