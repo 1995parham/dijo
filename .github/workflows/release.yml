@@ -192,6 +192,8 @@ jobs:
           pkgbuild: packaging/aur/PKGBUILD
           updpkgsums: true
           test: true
+          # the default flags have --nodeps, which leaves out rust
+          test_flags: --clean --cleanbuild --syncdeps --noconfirm
           commit_username: github-actions[bot]
           commit_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_message: "upgpkg: dijo-1995parham ${{ steps.version.outputs.version }}-1"
