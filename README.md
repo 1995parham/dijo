@@ -44,7 +44,13 @@ Run `dijo` to open the grid of habits. `dijo` writes the habits to disk when you
 dijo                  # open the habit grid
 dijo --list           # print the names of the habits
 dijo --missing gym    # print the days of this month that have no entry for `gym`
+dijo track water      # add 1 to today's `water`; `dijo track run 2.5`, `dijo track water -1`
+dijo track read --date 2026-11-26   # mark a yes/no habit as done on another day
+dijo status           # print today's progress, such as `3/5 done today`
+dijo status --json    # the same for scripts, with `text`, `tooltip` and `class` for waybar
 ```
+
+`dijo track` sets a yes/no habit to yes, and a second run keeps it at yes; `-1` sets it to no. `dijo track smoke 0` records a clean day of a limit habit. Do not run `dijo track` while the grid is open, because the grid writes its own state when you quit.
 
 ### Habits and goals
 

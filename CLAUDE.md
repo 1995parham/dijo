@@ -17,7 +17,8 @@ cargo test
 
 ## Architecture
 
-- `src/main.rs` — entry point: clap CLI (`--list`, `--missing`), builds the
+- `src/main.rs` — entry point: clap CLI (`--list`, `--missing`, and the
+  `track` / `status` subcommands over `App::track` / `App::status_report`), builds the
   Cursive TUI, holds the `CONFIGURATION` static.
 - `src/app/` — the `App` model (`Vec<Box<dyn HabitWrapper>>`, focus, cursor,
   message).

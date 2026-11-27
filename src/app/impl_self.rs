@@ -9,7 +9,7 @@ use cursive::utils::markup::StyledString;
 
 use crate::CONFIGURATION;
 use crate::command::{Command, CommandLineError, GoalKind};
-use crate::habit::{Bit, Count, Float, GoalPeriod, HabitWrapper, Limit, ViewMode};
+use crate::habit::{Bit, Count, Float, GoalPeriod, HabitWrapper, Limit, TrackEvent, ViewMode};
 use crate::stats::habit_stats;
 use crate::utils::{self, GRID_WIDTH, VIEW_HEIGHT};
 use crate::views::{day_style, progress_ratio};
@@ -165,6 +165,84 @@ impl App {
             total: with_goal().count(),
             timestamp,
         }
+    }
+
+    /// Add `amount` to the entry of the habit `name` on `date`, for `dijo
+    /// track`. A yes/no habit is set to yes (a negative amount sets it to no),
+    /// and `0` on an empty day of a limit habit records a clean day.
+    pub fn track(&mut self, name: &str, amount: &str, date: NaiveDate) -> Result<(), String> {
+        let habit = self
+            .habits
+            .iter_mut()
+            .find(|h| h.name() == name)
+            .ok_or_else(|| format!("habit `{name}` does not exist"))?;
+        let steps = track_steps(&habit.kind(), amount)?;
+        match habit.kind() {
+            GoalKind::Bit => {
+                if steps > 0 && habit.remaining(date) > 0 {
+                    habit.modify(date, TrackEvent::Increment);
+                } else if steps < 0 && habit.has_entry(date) {
+                    habit.modify(date, TrackEvent::Decrement);
+                }
+            }
+            GoalKind::Limit(_) if steps == 0 && !habit.has_entry(date) => {
+                habit.modify(date, TrackEvent::Decrement);
+            }
+            _ => {
+                let event = if steps < 0 {
+                    TrackEvent::Decrement
+                } else {
+                    TrackEvent::Increment
+                };
+                for _ in 0..steps.unsigned_abs() {
+                    habit.modify(date, event);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Today's progress of every habit with a goal, for `dijo status`: a line
+    /// such as `3/5 done today`, or JSON that a waybar custom module reads
+    /// (`text`, `tooltip`, `class`) with the details of each habit.
+    pub fn status_report(&self, json: bool) -> String {
+        let today = Local::now().date_naive();
+        let habits: Vec<_> = self.habits.iter().filter(|h| h.goal() > 0).collect();
+        let done = habits.iter().filter(|h| h.remaining(today) == 0).count();
+        let text = format!("{done}/{} done today", habits.len());
+        if !json {
+            return text;
+        }
+        let tooltip = habits
+            .iter()
+            .map(|h| {
+                let mark = if h.remaining(today) == 0 { "✓" } else { "·" };
+                format!("{mark} {}", h.name())
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let class = if done == habits.len() { "done" } else { "todo" };
+        let details: Vec<_> = habits
+            .iter()
+            .map(|h| {
+                serde_json::json!({
+                    "name": h.name(),
+                    "done": h.remaining(today) == 0,
+                    "goal": h.goal(),
+                    "remaining": h.remaining(today),
+                    "period": h.period().to_string(),
+                })
+            })
+            .collect();
+        serde_json::json!({
+            "text": text,
+            "tooltip": tooltip,
+            "class": class,
+            "done": done,
+            "total": habits.len(),
+            "habits": details,
+        })
+        .to_string()
     }
 
     /// Build a full-screen dashboard for the currently focused habit: a header,
@@ -590,6 +668,24 @@ impl App {
     }
 }
 
+/// The number of steps that `amount` makes for a habit of `kind`: whole units
+/// for a count, units of the habit's precision for a float (`2.5` with one
+/// decimal is 25 steps).
+fn track_steps(kind: &GoalKind, amount: &str) -> Result<i64, String> {
+    let invalid = || format!("invalid amount `{amount}`");
+    match kind {
+        GoalKind::Float(_, precision) => {
+            let value: f64 = amount.parse().map_err(|_| invalid())?;
+            let steps = value * 10f64.powi(i32::from(*precision));
+            if !steps.is_finite() || steps.abs() > f64::from(u32::MAX) {
+                return Err(invalid());
+            }
+            Ok(steps.round() as i64)
+        }
+        _ => amount.parse().map_err(|_| invalid()),
+    }
+}
+
 fn month_abbr(month: u32) -> &'static str {
     const NAMES: [&str; 12] = [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -600,7 +696,7 @@ fn month_abbr(month: u32) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::habit::{Count, Habit};
+    use crate::habit::{Bit, Count, Float, Habit, Limit};
 
     #[test]
     fn dashboard_is_none_without_habits() {
@@ -714,6 +810,65 @@ mod tests {
         app.parse_command(Ok(Command::Delete("gym".into())));
         assert_eq!(app.focus, 0);
         assert_eq!(app.list_habits(), vec!["read".to_string()]);
+    }
+
+    fn tracked_app() -> (App, NaiveDate) {
+        let mut app = App::new();
+        app.add_habit(Box::new(Bit::new("read")));
+        app.add_habit(Box::new(Count::new("water", 8)));
+        app.add_habit(Box::new(Float::new("run", 50, 1)));
+        app.add_habit(Box::new(Limit::new("smoke", 2)));
+        (app, Local::now().date_naive())
+    }
+
+    #[test]
+    fn track_adds_to_a_count_and_a_float() {
+        let (mut app, today) = tracked_app();
+        app.track("water", "3", today).unwrap();
+        app.track("water", "-1", today).unwrap();
+        assert_eq!(app.habits[1].remaining(today), 6);
+        app.track("run", "2.5", today).unwrap();
+        assert_eq!(app.habits[2].remaining(today), 25);
+    }
+
+    #[test]
+    fn track_sets_a_yes_no_habit_without_a_toggle() {
+        let (mut app, today) = tracked_app();
+        app.track("read", "1", today).unwrap();
+        app.track("read", "1", today).unwrap();
+        assert_eq!(app.habits[0].remaining(today), 0, "still yes");
+        app.track("read", "-1", today).unwrap();
+        assert_eq!(app.habits[0].remaining(today), 1);
+    }
+
+    #[test]
+    fn track_zero_records_a_clean_day_of_a_limit() {
+        let (mut app, today) = tracked_app();
+        app.track("smoke", "0", today).unwrap();
+        assert!(app.habits[3].has_entry(today));
+        assert_eq!(app.habits[3].remaining(today), 0);
+    }
+
+    #[test]
+    fn track_rejects_an_unknown_habit_and_a_bad_amount() {
+        let (mut app, today) = tracked_app();
+        assert!(app.track("ghost", "1", today).is_err());
+        assert!(app.track("water", "lots", today).is_err());
+        assert!(app.track("run", "1e30", today).is_err());
+    }
+
+    #[test]
+    fn status_report_counts_the_habits_done_today() {
+        let (mut app, today) = tracked_app();
+        app.track("read", "1", today).unwrap();
+        app.track("smoke", "0", today).unwrap();
+        assert_eq!(app.status_report(false), "2/4 done today");
+
+        let json: serde_json::Value = serde_json::from_str(&app.status_report(true)).unwrap();
+        assert_eq!(json["text"], "2/4 done today");
+        assert_eq!(json["class"], "todo");
+        assert_eq!(json["habits"][0]["done"], true);
+        assert_eq!(json["habits"][1]["remaining"], 8);
     }
 
     #[test]

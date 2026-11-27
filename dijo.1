@@ -28,6 +28,14 @@ Prints version information
 .BR \-m ", " \-\-missing " " \fIHABIT
 Print the days in the current month a habit was not filled
 
+.SH SUBCOMMANDS
+.TP
+.BR track " " \fIHABIT\fR " [" \fIAMOUNT\fR "] [" \-\-date " " \fIYYYY-MM-DD\fR "]"
+Add \fIAMOUNT\fR (default 1) to the entry of \fIHABIT\fR for today or the given date, and save. A negative amount subtracts, and a float habit takes a decimal amount. A yes/no habit is set to yes, or to no with \-1. An amount of 0 records a clean day of a limit habit. Do not run it while the grid is open.
+.TP
+.BR status " [" \-\-json "]"
+Print the progress of today, such as \fB3/5 done today\fR. With \fB\-\-json\fR, print JSON with \fBtext\fR, \fBtooltip\fR and \fBclass\fR (for a waybar custom module) and the details of each habit.
+
 .SH FEATURES
 .TP
 \(bu \fBvim like motions\fR
