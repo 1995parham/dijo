@@ -45,12 +45,17 @@ impl App {
         }
     }
 
+    /// Delete the habit called `name`. The focus moves to the first habit only
+    /// when a habit was deleted; an unknown name is an error.
     pub fn delete_by_name(&mut self, name: &str) {
         let old_len = self.habits.len();
         self.habits.retain(|h| h.name() != name);
         if old_len == self.habits.len() {
+            self.message.set_kind(MessageKind::Error);
             self.message
-                .set_message(format!("Could not delete habit `{name}`"))
+                .set_message(format!("Habit `{name}` does not exist"));
+        } else {
+            self.focus = 0;
         }
     }
 
@@ -507,7 +512,7 @@ impl App {
                     if self.habits.iter().any(|x| x.name() == name) {
                         self.message.set_kind(MessageKind::Error);
                         self.message
-                            .set_message(format!("Habit `{name}` already exist"));
+                            .set_message(format!("Habit `{name}` already exists"));
                         return;
                     }
                     match goal {
@@ -520,7 +525,12 @@ impl App {
                         Some(GoalKind::Float(v, p)) => {
                             self.add_habit(Box::new(Float::new(name, v, p).with_period(period)));
                         }
-                        _ => {
+                        Some(GoalKind::Addiction(_)) => {
+                            self.message.set_kind(MessageKind::Error);
+                            self.message
+                                .set_message("Limit goals (`<n`) are not supported yet");
+                        }
+                        None => {
                             self.add_habit(Box::new(Count::new(name, 0)));
                         }
                     }
@@ -534,10 +544,7 @@ impl App {
                             .set_message(format!("Habit `{name}` does not exist"));
                     }
                 }
-                Command::Delete(name) => {
-                    self.delete_by_name(&name);
-                    self.focus = 0;
-                }
+                Command::Delete(name) => self.delete_by_name(&name),
                 Command::Help(input) => {
                     if let Some(topic) = input.as_ref().map(String::as_ref) {
                         self.message.set_message(
@@ -681,6 +688,30 @@ mod tests {
         app.clear_message();
         app.parse_command(Ok(Command::Help(None)));
         assert!(matches!(app.message.kind(), MessageKind::Info));
+    }
+
+    #[test]
+    fn a_limit_goal_is_rejected() {
+        let mut app = App::new();
+        app.parse_command("add smoke <5".parse());
+        assert!(app.habits.is_empty());
+        assert!(matches!(app.message.kind(), MessageKind::Error));
+    }
+
+    #[test]
+    fn deleting_an_unknown_habit_is_an_error_and_keeps_the_focus() {
+        let mut app = App::new();
+        app.add_habit(Box::new(Count::new("read", 1)));
+        app.add_habit(Box::new(Count::new("gym", 1)));
+        app.focus = 1;
+
+        app.parse_command(Ok(Command::Delete("ghost".into())));
+        assert_eq!(app.focus, 1);
+        assert!(matches!(app.message.kind(), MessageKind::Error));
+
+        app.parse_command(Ok(Command::Delete("gym".into())));
+        assert_eq!(app.focus, 0);
+        assert_eq!(app.list_habits(), vec!["read".to_string()]);
     }
 
     #[test]
