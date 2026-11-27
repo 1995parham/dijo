@@ -9,7 +9,7 @@ use cursive::utils::markup::StyledString;
 
 use crate::CONFIGURATION;
 use crate::command::{Command, CommandLineError, GoalKind};
-use crate::habit::{Bit, Count, Float, GoalPeriod, HabitWrapper, ViewMode};
+use crate::habit::{Bit, Count, Float, GoalPeriod, HabitWrapper, Limit, ViewMode};
 use crate::stats::habit_stats;
 use crate::utils::{self, GRID_WIDTH, VIEW_HEIGHT};
 use crate::views::{day_style, progress_ratio};
@@ -515,10 +515,13 @@ impl App {
                         Some(GoalKind::Float(v, p)) => {
                             self.add_habit(Box::new(Float::new(name, v, p).with_period(period)));
                         }
-                        Some(GoalKind::Addiction(_)) => {
+                        Some(GoalKind::Limit(_)) if period == GoalPeriod::Weekly => {
                             self.message.set_kind(MessageKind::Error);
                             self.message
-                                .set_message("Limit goals (`<n`) are not supported yet");
+                                .set_message("A limit (`<n`) is per day; `/week` does not apply");
+                        }
+                        Some(GoalKind::Limit(v)) => {
+                            self.add_habit(Box::new(Limit::new(name, v)));
                         }
                         None => {
                             self.add_habit(Box::new(Count::new(name, 0)));
@@ -539,7 +542,7 @@ impl App {
                     if let Some(topic) = input.as_ref().map(String::as_ref) {
                         self.message.set_message(
                             match topic {
-                                "a"     | "add" => "add <habit-name> [goal[/week]]   e.g. `add gym 3/week`  (alias: a)",
+                                "a"     | "add" => "add <habit-name> [goal[/week] | <limit]   e.g. `add gym 3/week`, `add smoke <5`  (alias: a)",
                                 "describe" | "desc" => "describe <habit-name> <text...>     (alias: desc)",
                                 "d"     | "delete" => "delete <habit-name>     (alias: d)",
                                 "mprev" | "month-prev" => "month-prev     (alias: mprev)",
@@ -682,9 +685,17 @@ mod tests {
     }
 
     #[test]
-    fn a_limit_goal_is_rejected() {
+    fn a_limit_goal_adds_a_limit_habit() {
         let mut app = App::new();
         app.parse_command("add smoke <5".parse());
+        assert_eq!(app.list_habits(), vec!["smoke".to_string()]);
+        assert_eq!(app.habits[0].kind(), GoalKind::Limit(5));
+    }
+
+    #[test]
+    fn a_weekly_limit_is_rejected() {
+        let mut app = App::new();
+        app.parse_command("add smoke <5/week".parse());
         assert!(app.habits.is_empty());
         assert!(matches!(app.message.kind(), MessageKind::Error));
     }

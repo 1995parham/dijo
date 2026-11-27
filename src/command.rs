@@ -167,7 +167,8 @@ pub enum GoalKind {
     Count(u32),
     Bit,
     Float(u32, u8),
-    Addiction(u32),
+    /// At most this many a day: `<5`.
+    Limit(u32),
 }
 
 impl FromStr for GoalKind {
@@ -178,7 +179,7 @@ impl FromStr for GoalKind {
             return n
                 .parse::<u32>()
                 .map_err(|_| CommandLineError::InvalidGoal(s.into()))
-                .map(GoalKind::Addiction);
+                .map(GoalKind::Limit);
         } else if let Some((whole, fraction)) = s.split_once('.') {
             let digits = |p: &str| p.chars().all(|c| c.is_ascii_digit());
             if fraction.is_empty()

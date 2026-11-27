@@ -7,12 +7,31 @@ use cursive::{Printer, Vec2};
 
 use crate::CONFIGURATION;
 use crate::app::{App, MessageKind};
+use crate::command::GoalKind;
 use crate::habit::{GoalPeriod, HabitWrapper, ViewMode};
 use crate::utils::{CARD_GAP, CARD_WIDTH, GRID_WIDTH, VIEW_HEIGHT, VIEW_WIDTH};
 
 /// The progress badge in the top-right corner of a card: a check mark once the
 /// goal of today (or of this week) is reached, the percentage until then.
 fn badge(habit: &dyn HabitWrapper, accent: Color, today: NaiveDate) -> Option<(String, Style)> {
+    if let GoalKind::Limit(limit) = habit.kind() {
+        return Some(if habit.remaining(today) == 0 {
+            (
+                format!("✓ ≤{limit}"),
+                Style::from(accent).combine(Effect::Bold),
+            )
+        } else if habit.has_entry(today) {
+            (
+                "over".to_string(),
+                Style::from(CONFIGURATION.undone_color()),
+            )
+        } else {
+            (
+                format!("≤{limit}"),
+                Style::from(CONFIGURATION.inactive_color()),
+            )
+        });
+    }
     let goal = habit.goal();
     if goal == 0 {
         return None;

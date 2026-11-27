@@ -357,7 +357,7 @@ fn archived_reached_dates(habit: &serde_json::Value) -> Vec<NaiveDate> {
     // Numeric goal and per-day contribution, shared by the daily and weekly
     // branches. Bit habits carry no numeric goal and are always daily.
     let numeric_goal: u64 = match habit_type {
-        "Count" => goal.and_then(|g| g.as_u64()).unwrap_or(0),
+        "Count" | "Limit" => goal.and_then(|g| g.as_u64()).unwrap_or(0),
         "Float" => goal
             .and_then(|g| g.as_object())
             .and_then(|o| o.get("value"))
@@ -367,7 +367,7 @@ fn archived_reached_dates(habit: &serde_json::Value) -> Vec<NaiveDate> {
     };
     let day_value = |value: &serde_json::Value| -> u64 {
         match habit_type {
-            "Count" => value.as_u64().unwrap_or(0),
+            "Count" | "Limit" => value.as_u64().unwrap_or(0),
             "Float" => value
                 .as_object()
                 .and_then(|o| o.get("value"))
@@ -402,6 +402,7 @@ fn archived_reached_dates(habit: &serde_json::Value) -> Vec<NaiveDate> {
             let reached = match habit_type {
                 "Bit" => value.as_bool().unwrap_or(false),
                 "Count" | "Float" => numeric_goal == 0 || day_value(value) >= numeric_goal,
+                "Limit" => day_value(value) <= numeric_goal,
                 _ => false,
             };
             if reached {
@@ -516,6 +517,15 @@ mod tests {
             },
         }));
         assert_eq!(got, HashSet::from([d(1), d(3), d(5)]));
+    }
+
+    #[test]
+    fn limit_marks_days_at_or_under_the_limit() {
+        let got = reached(json!({
+            "type": "Limit", "name": "smoke", "goal": 2,
+            "stats": { "2024-01-01": 0, "2024-01-02": 2, "2024-01-03": 3 },
+        }));
+        assert_eq!(got, HashSet::from([d(1), d(2)]));
     }
 
     #[test]

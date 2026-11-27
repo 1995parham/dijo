@@ -6,7 +6,7 @@ use cursive::view::CannotFocus;
 use cursive::{Printer, Vec2};
 
 use crate::command::GoalKind;
-use crate::habit::{Bit, Count, Float, GoalPeriod, InnerData, TrackEvent};
+use crate::habit::{Bit, Count, Float, GoalPeriod, InnerData, Limit, TrackEvent};
 use crate::utils::missed_days;
 use crate::views::ShadowView;
 
@@ -51,6 +51,8 @@ pub trait HabitWrapper: Sync + Send {
     fn required_size(&mut self, _: Vec2) -> Vec2;
     fn take_focus(&mut self, _: Direction) -> Result<EventResult, CannotFocus>;
     fn missed_dates(&self) -> Vec<NaiveDate>;
+    /// Whether `date` has an entry, even one without progress.
+    fn has_entry(&self, date: NaiveDate) -> bool;
 
     fn inner_data_ref(&self) -> &InnerData;
     fn inner_data_mut_ref(&mut self) -> &mut InnerData;
@@ -108,6 +110,9 @@ macro_rules! auto_habit_impl {
             fn inner_data_mut_ref(&mut self) -> &mut InnerData {
                 Habit::inner_data_mut_ref(self)
             }
+            fn has_entry(&self, date: NaiveDate) -> bool {
+                Habit::get_by_date(self, date).is_some()
+            }
             fn missed_dates(&self) -> Vec<NaiveDate> {
                 let inner = Habit::inner_data_ref(self);
                 missed_days(
@@ -128,4 +133,4 @@ macro_rules! generate_implementations {
     );
 }
 
-generate_implementations!(Count, Bit, Float);
+generate_implementations!(Count, Bit, Float, Limit);

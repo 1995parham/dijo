@@ -56,9 +56,12 @@ Add a habit in command mode with `:add <name> [goal]`. The goal sets the type of
 | `:add water 8` | a count with a goal of 8 each day |
 | `:add run 2.5` | a decimal amount with a goal of 2.5 each day |
 | `:add gym 3/week` | a count with a goal of 3 each week (also `/w` and `/weekly`) |
+| `:add smoke <5` | a limit: a day is reached when it has at most 5 |
 | `:add coffee` | a count with no goal, only to record a number |
 
 A weekly goal counts all the entries from Monday to Sunday. The streaks and the completion rate of a weekly habit count weeks, not days.
+
+A limit is per day. A day counts only when it has an entry, so press `p` on an empty day to record a clean day (0). A day over the limit shows in the undone color, and the card shows `over`.
 
 `:describe <name> <text...>` adds a description to a habit. The grid shows the first line of the description, and `i` shows the full text. Write `\n` in the text to start a new line.
 

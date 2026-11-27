@@ -10,6 +10,9 @@ pub use bit::Bit;
 mod float;
 pub use float::Float;
 
+mod limit;
+pub use limit::Limit;
+
 mod prelude;
 pub use prelude::{GoalPeriod, TrackEvent, ViewMode};
 

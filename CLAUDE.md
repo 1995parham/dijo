@@ -25,7 +25,7 @@ cargo test
     command dispatch (`parse_command`), and `focused_dashboard`.
   - `impl_view.rs` — Cursive `View` impl: grid drawing and key handling
     (`on_event`, including the `v` view cycle and the `d` dashboard hotkey).
-- `src/habit/` — habit types `Bit`, `Count`, `Float` behind the `Habit` +
+- `src/habit/` — habit types `Bit`, `Count`, `Float`, `Limit` behind the `Habit` +
   `HabitWrapper` traits (typetag-serialized). `ViewMode` lives in `prelude.rs`.
 - `src/views.rs` — `ShadowView`: the body of a habit card for each view mode
   (day / week / month / sparkline / year / stats / heatmap). The card frame,
@@ -85,6 +85,11 @@ Data lives in the platform data dir: `habit_record.json` plus an `archive/` of
   is daily-only. `habit_stats` is period-aware: it reduces reached dates to
   per-period indices, so a `Weekly` habit's streak/total/rate count *weeks*, and
   the Stats view and dashboard label the unit accordingly.
+- **Limit habits** (`habit/limit.rs`): `:add smoke <5` makes a `Limit`, daily
+  only. A day is reached when it has an entry at or below the limit; `remaining`
+  is 0 or the whole goal, so there are no partial shades, and a day over the
+  limit draws as undone. `p` on an empty day records a clean day (0). The card
+  badge shows `✓ ≤n`, `over` or a dim `≤n` (`badge` in `impl_view.rs`).
 - **Heatmap** (`views.rs`): GitHub-style grid shaded `█`/`▒`/`░` by completion,
   folding in archived reached-days; the rightmost column tracks the viewed week,
   so `[` / `]` scrolls it through history.
@@ -119,9 +124,6 @@ in the vault note `~/org/HowTo/dijo Setup.md`.
 
 ## Known gaps / TODO
 
-- `GoalKind::Addiction` (`:add foo <5`) parses, but `parse_command` rejects it
-  with "Limit goals (`<n`) are not supported yet" until a limit habit type
-  exists.
 - No tests yet for the month grouping of `archive_habits`. The `--missing`
   logic is the pure, tested `utils::missed_days`.
 - The archive scanner reduces to the pure, tested `utils::archived_reached_dates`
