@@ -1,6 +1,6 @@
 [package]
 name = "dijo"
-version = "1.8.0"
+version = "1.9.0"
 authors = ["Parham Alvani <parham.alvani@gmail.com>", "Akshay <nerdy@peppe.rs>"]
 edition = "2024"
 rust-version = "1.88"
