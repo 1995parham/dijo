@@ -1,8 +1,11 @@
 ---
 name: ci
 on:
+  # a tag runs these checks through the release workflow instead
   push:
+    branches: ["**"]
   pull_request:
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}

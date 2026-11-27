@@ -158,7 +158,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-A tag of the form `v*.*.*` starts the release workflow, which builds the binaries and publishes a GitHub Release.
+A tag of the form `v*.*.*` is the whole release. The release workflow runs the checks, builds the binaries with the version of the tag, publishes a GitHub Release, commits the version bump to `main`, and updates the Homebrew tap and the AUR package.
 
 ## License
 

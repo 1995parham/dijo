@@ -74,8 +74,9 @@ Data lives in the platform data dir: `habit_record.json` plus an `archive/` of
   days are blank, the cursor day is highlighted.
 - **Undone vs. not filled**: a day with an entry but no progress (a Bit set to
   "no", a Count back at 0) is *undone* and drawn in `colors.undone`; a past day
-  with no entry is *not filled* and drawn dim (`inactive`). Day, sparkline and
-  heatmap views all keep the two apart (`undone` closure in `views.rs`).
+  with no entry is *not filled* and drawn dim (`inactive`). The day, sparkline
+  and heatmap views and the dashboard all keep the two apart: they style a day
+  with `views::day_style` from `views::progress_ratio` and an `undone` flag.
 - **Weekly goals**: a habit's goal carries a `GoalPeriod` (`Daily`/`Weekly`,
   `prelude.rs`), stored per habit with `#[serde(default)]` so old records load as
   daily. `:add gym 3/week` (also `/w`, `/weekly`) makes a `Count`/`Float` whose
@@ -94,28 +95,35 @@ Data lives in the platform data dir: `habit_record.json` plus an `archive/` of
 
 ## Release process
 
-Pushing a tag `v*.*.*` triggers `.github/workflows/release.yml`: it
-cross-compiles Linux / macOS (x86_64 + aarch64) / Windows, packages the binary
-with `README.md` and `dijo.1`, and publishes a GitHub Release. Before tagging:
-bump `version` in `Cargo.toml` (rebuild to sync `Cargo.lock`), update the `.TH`
-line in `dijo.1`, and **confirm CI is green first**.
+A tag is the whole release: push `vX.Y.Z` and nothing else. Do not bump
+`Cargo.toml` or `dijo.1` by hand first. `.github/workflows/release.yml` then:
 
-After the GitHub release, the same workflow updates the Homebrew tap (job
-`homebrew`: `scripts/update-formula.py` on `dijo.rb` in `1995parham/homebrew-tap`,
-pushed with the `TAP_DEPLOY_KEY` deploy key) and the AUR package
-`dijo-1995parham` (job `aur`: sets `pkgver` in `packaging/aur/PKGBUILD`, then
-`KSXGitHub/github-actions-deploy-aur` computes the checksum, builds and pushes
-with `AUR_SSH_PRIVATE_KEY`). Change the package itself in
+1. runs `ci.yml` (fmt, clippy, test) as a reusable workflow; a failure stops
+   the release;
+2. builds Linux / macOS (x86_64 + aarch64) / Windows with `DIJO_VERSION` set
+   from the tag (`main.rs` prints it in `--version`, falling back to the
+   `Cargo.toml` version), sets the `.TH` line of `dijo.1`, and publishes the
+   GitHub Release;
+3. commits `chore: bump version to X.Y.Z` (`Cargo.toml`, `Cargo.lock`,
+   `dijo.1`) to `main` (job `bump`), so pull after a release;
+4. updates the Homebrew tap (job `homebrew`: `scripts/update-formula.py` on
+   `dijo.rb` in `1995parham/homebrew-tap`, pushed with the `TAP_DEPLOY_KEY`
+   deploy key) and the AUR package `dijo-1995parham` (job `aur`: sets `pkgver`
+   in `packaging/aur/PKGBUILD`, then `KSXGitHub/github-actions-deploy-aur`
+   computes the checksum, builds and pushes with `AUR_SSH_PRIVATE_KEY`).
+
+The AUR builds from the tag archive, so its `PKGBUILD` also exports
+`DIJO_VERSION` and sets the `.TH` line itself. Change the package in
 `packaging/aur/PKGBUILD`, not on the AUR. The keys and the manual fallback are
 in the vault note `~/org/HowTo/dijo Setup.md`.
 
 ## Known gaps / TODO
 
-- `GoalKind::Addiction` (`:add foo <5`) parses but falls through to a count-0
-  habit in `parse_command` — implement an addiction/limit habit type or reject
-  it with a clear message.
-- `command.rs` now has parse tests (incl. weekly goals); still no tests for
-  `archive_habits` month-grouping or `missed_dates`.
+- `GoalKind::Addiction` (`:add foo <5`) parses, but `parse_command` rejects it
+  with "Limit goals (`<n`) are not supported yet" until a limit habit type
+  exists.
+- No tests yet for the month grouping of `archive_habits`. The `--missing`
+  logic is the pure, tested `utils::missed_days`.
 - The archive scanner reduces to the pure, tested `utils::archived_reached_dates`
   and is period-aware. One residual approximation: it aggregates weekly goals
   per archive *file* (i.e. per month), so a Mon–Sun week straddling a month

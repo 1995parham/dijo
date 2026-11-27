@@ -16,11 +16,19 @@ use cursive::views::{LinearLayout, NamedView};
 use cursive::{Cursive, CursiveExt};
 use std::sync::LazyLock;
 
+/// The version that `dijo --version` prints. A release build takes it from the
+/// tag through `DIJO_VERSION`, so a tag alone makes a release; any other build
+/// uses the version in `Cargo.toml`.
+const VERSION: &str = match option_env!("DIJO_VERSION") {
+    Some(v) => v,
+    None => clap::crate_version!(),
+};
+
 pub static CONFIGURATION: LazyLock<AppConfig> = LazyLock::new(load_configuration_file);
 
 fn main() {
     let matches = ClapApp::new(clap::crate_name!())
-        .version(clap::crate_version!())
+        .version(VERSION)
         .author(clap::crate_authors!("\n"))
         .about(clap::crate_description!())
         .help_template(
