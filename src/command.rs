@@ -14,6 +14,8 @@ static COMMANDS: &[&str] = &[
     "add",
     "describe",
     "delete",
+    "rename",
+    "goal",
     "month-prev",
     "month-next",
     "quit",
@@ -216,10 +218,23 @@ fn split_period(token: &str) -> (&str, GoalPeriod) {
     (token, GoalPeriod::Daily)
 }
 
+/// Parse a goal token such as `3`, `2.5`, `<5` or `3/week`. A weekly `1` is
+/// "once a week", a count target, not a daily yes/no habit.
+fn parse_goal(raw: &str) -> Result<(GoalKind, GoalPeriod)> {
+    let (base, period) = split_period(raw);
+    let mut kind = GoalKind::from_str(base)?;
+    if period == GoalPeriod::Weekly && kind == GoalKind::Bit {
+        kind = GoalKind::Count(1);
+    }
+    Ok((kind, period))
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Command {
     Add(String, Option<GoalKind>, GoalPeriod),
     Describe(String, String),
+    Rename(String, String),
+    Goal(String, GoalKind, GoalPeriod),
     MonthPrev,
     MonthNext,
     Delete(String),
@@ -274,13 +289,7 @@ impl FromStr for Command {
             }
             let (goal, period) = match args.get(1) {
                 Some(raw) => {
-                    let (base, period) = split_period(raw);
-                    let mut kind = GoalKind::from_str(base)?;
-                    // A weekly `1` is "once a week", a legitimate count target,
-                    // not a daily yes/no habit.
-                    if period == GoalPeriod::Weekly && kind == GoalKind::Bit {
-                        kind = GoalKind::Count(1);
-                    }
+                    let (kind, period) = parse_goal(raw)?;
                     (Some(kind), period)
                 }
                 None => (None, GoalPeriod::Daily),
@@ -309,6 +318,19 @@ impl FromStr for Command {
                 // put a line break in a description
                 let description = args[1..].join(" ").replace("\\n", "\n");
                 Ok(Command::Describe(name, description))
+            }
+            "rename" => {
+                if args.len() < 2 {
+                    return Err(CommandLineError::NotEnoughArgs(first, 2));
+                }
+                Ok(Command::Rename(args[0].to_string(), args[1].to_string()))
+            }
+            "goal" => {
+                if args.len() < 2 {
+                    return Err(CommandLineError::NotEnoughArgs(first, 2));
+                }
+                let (kind, period) = parse_goal(&args[1])?;
+                Ok(Command::Goal(args[0].to_string(), kind, period))
             }
             "h" | "?" | "help" => {
                 if args.is_empty() {
@@ -425,6 +447,22 @@ mod tests {
                 "goal `{goal}` should be rejected",
             );
         }
+    }
+
+    #[test]
+    fn rename_and_goal_parse_their_arguments() {
+        assert_eq!(
+            "rename gym lifting".parse::<Command>().unwrap(),
+            Command::Rename("gym".into(), "lifting".into())
+        );
+        assert_eq!(
+            "goal gym 4/week".parse::<Command>().unwrap(),
+            Command::Goal("gym".into(), GoalKind::Count(4), GoalPeriod::Weekly)
+        );
+        assert!(matches!(
+            "goal gym".parse::<Command>(),
+            Err(CommandLineError::NotEnoughArgs(_, 2))
+        ));
     }
 
     #[test]

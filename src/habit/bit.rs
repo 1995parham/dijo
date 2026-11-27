@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::CONFIGURATION;
 use crate::command::GoalKind;
 use crate::habit::traits::Habit;
-use crate::habit::{InnerData, TrackEvent};
+use crate::habit::{GoalPeriod, InnerData, TrackEvent};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct CustomBool(bool);
@@ -66,6 +66,13 @@ impl Habit for Bit {
     }
     fn set_description(&mut self, description: String) {
         self.description = description;
+    }
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+    fn set_goal(&mut self, goal: &GoalKind, period: GoalPeriod) -> Result<(), String> {
+        let _ = (goal, period);
+        Err("a yes/no habit has no goal to change".into())
     }
     fn kind(&self) -> GoalKind {
         GoalKind::Bit

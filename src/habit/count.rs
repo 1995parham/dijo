@@ -67,6 +67,18 @@ impl Habit for Count {
     fn set_description(&mut self, description: String) {
         self.description = description;
     }
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+    fn set_goal(&mut self, goal: &GoalKind, period: GoalPeriod) -> Result<(), String> {
+        self.goal = match goal {
+            GoalKind::Count(n) => *n,
+            GoalKind::Bit => 1,
+            _ => return Err("a count habit takes a whole number as its goal".into()),
+        };
+        self.period = period;
+        Ok(())
+    }
     fn kind(&self) -> GoalKind {
         GoalKind::Count(self.goal)
     }

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::command::GoalKind;
 use crate::habit::traits::Habit;
-use crate::habit::{InnerData, TrackEvent};
+use crate::habit::{GoalPeriod, InnerData, TrackEvent};
 
 /// A habit to keep under a daily limit, such as `:add smoke <5`. A day is
 /// reached when it has an entry at or below the limit; a day over the limit is
@@ -47,6 +47,18 @@ impl Habit for Limit {
     }
     fn set_description(&mut self, description: String) {
         self.description = description;
+    }
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+    fn set_goal(&mut self, goal: &GoalKind, period: GoalPeriod) -> Result<(), String> {
+        match (goal, period) {
+            (GoalKind::Limit(n), GoalPeriod::Daily) => {
+                self.goal = *n;
+                Ok(())
+            }
+            _ => Err("a limit habit takes a daily limit such as `<5`".into()),
+        }
     }
     fn kind(&self) -> GoalKind {
         GoalKind::Limit(self.goal)

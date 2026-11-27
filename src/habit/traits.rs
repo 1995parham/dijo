@@ -21,6 +21,10 @@ pub trait Habit {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn set_description(&mut self, description: String);
+    fn set_name(&mut self, name: String);
+    /// Change the goal, keeping the habit's type: an error explains a goal
+    /// that the type cannot take.
+    fn set_goal(&mut self, goal: &GoalKind, period: GoalPeriod) -> Result<(), String>;
     fn reached_goal(&self, date: NaiveDate) -> bool;
     fn remaining(&self, date: NaiveDate) -> u32;
     fn kind(&self) -> GoalKind;
@@ -46,6 +50,8 @@ pub trait HabitWrapper: Sync + Send {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn set_description(&mut self, description: String);
+    fn set_name(&mut self, name: String);
+    fn set_goal(&mut self, goal: &GoalKind, period: GoalPeriod) -> Result<(), String>;
     fn on_event(&mut self, event: Event) -> EventResult;
     fn remaining(&self, date: NaiveDate) -> u32;
     fn required_size(&mut self, _: Vec2) -> Vec2;
@@ -103,6 +109,12 @@ macro_rules! auto_habit_impl {
             }
             fn set_description(&mut self, description: String) {
                 Habit::set_description(self, description);
+            }
+            fn set_name(&mut self, name: String) {
+                Habit::set_name(self, name);
+            }
+            fn set_goal(&mut self, goal: &GoalKind, period: GoalPeriod) -> Result<(), String> {
+                Habit::set_goal(self, goal, period)
             }
             fn inner_data_ref(&self) -> &InnerData {
                 Habit::inner_data_ref(self)

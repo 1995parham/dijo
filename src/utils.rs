@@ -306,6 +306,44 @@ pub fn load_archived_reached_goals() -> HashMap<String, HashSet<NaiveDate>> {
     result
 }
 
+/// Rename the habit `old` to `new` in every archive file, so its history stays
+/// with it. A file is written again only when it holds the habit.
+pub fn rename_in_archives(old: &str, new: &str) -> Result<(), String> {
+    let dir = archive_dir()?;
+    let entries = fs::read_dir(&dir).map_err(|e| format!("could not read archive dir: {e}"))?;
+    for path in entries.flatten().map(|e| e.path()) {
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let contents = fs::read_to_string(&path)
+            .map_err(|e| format!("could not read archive {}: {e}", path.display()))?;
+        let mut habits: Vec<serde_json::Value> = serde_json::from_str(&contents)
+            .map_err(|e| format!("could not parse archive {}: {e}", path.display()))?;
+        if !rename_archived(&mut habits, old, new) {
+            continue;
+        }
+        let mut o = serde_json::json!(habits);
+        o.sort_all_objects();
+        let j = serde_json::to_string_pretty(&o)
+            .map_err(|e| format!("could not serialize archive: {e}"))?;
+        write_atomic(&path, j.as_bytes())?;
+    }
+    Ok(())
+}
+
+/// Rename the habit `old` to `new` in the habits of one archive file. Returns
+/// whether a habit was renamed.
+fn rename_archived(habits: &mut [serde_json::Value], old: &str, new: &str) -> bool {
+    let mut renamed = false;
+    for habit in habits.iter_mut() {
+        if habit.get("name").and_then(|n| n.as_str()) == Some(old) {
+            habit["name"] = serde_json::Value::from(new);
+            renamed = true;
+        }
+    }
+    renamed
+}
+
 /// Merge the habits of a new archive run into the habits already stored in an
 /// archive file of the same month. A habit present in both keeps its old
 /// entries and takes the new ones (a new entry wins on the same day); its other
@@ -448,6 +486,18 @@ mod tests {
         );
         assert_eq!(merged[1]["name"], "gone");
         assert_eq!(merged[2]["name"], "new");
+    }
+
+    #[test]
+    fn rename_archived_changes_only_the_named_habit() {
+        let mut habits = vec![
+            json!({"type": "Count", "name": "gym", "goal": 1, "stats": {}}),
+            json!({"type": "Count", "name": "read", "goal": 1, "stats": {}}),
+        ];
+        assert!(rename_archived(&mut habits, "gym", "lifting"));
+        assert_eq!(habits[0]["name"], "lifting");
+        assert_eq!(habits[1]["name"], "read");
+        assert!(!rename_archived(&mut habits, "ghost", "x"));
     }
 
     #[test]

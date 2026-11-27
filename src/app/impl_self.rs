@@ -56,6 +56,23 @@ impl App {
         }
     }
 
+    /// Rename the habit `old` to `new`, in the archive files too, and save at
+    /// once so the record and the archives keep the same name.
+    pub fn rename(&mut self, old: &str, new: &str) {
+        let result = if self.habits.iter().any(|h| h.name() == new) {
+            Err(format!("Habit `{new}` already exists"))
+        } else if let Some(habit) = self.habits.iter_mut().find(|h| h.name() == old) {
+            habit.set_name(new.to_owned());
+            utils::rename_in_archives(old, new).and_then(|()| self.save_state())
+        } else {
+            Err(format!("Habit `{old}` does not exist"))
+        };
+        if let Err(e) = result {
+            self.message.set_kind(MessageKind::Error);
+            self.message.set_message(e);
+        }
+    }
+
     pub fn get_mode(&self) -> ViewMode {
         if self.habits.is_empty() {
             return ViewMode::Day;
@@ -616,6 +633,17 @@ impl App {
                     }
                 }
                 Command::Delete(name) => self.delete_by_name(&name),
+                Command::Rename(old, new) => self.rename(&old, &new),
+                Command::Goal(name, goal, period) => {
+                    let result = match self.habits.iter_mut().find(|h| h.name() == name) {
+                        Some(habit) => habit.set_goal(&goal, period),
+                        None => Err(format!("Habit `{name}` does not exist")),
+                    };
+                    if let Err(e) = result {
+                        self.message.set_kind(MessageKind::Error);
+                        self.message.set_message(e);
+                    }
+                }
                 Command::Help(input) => {
                     if let Some(topic) = input.as_ref().map(String::as_ref) {
                         self.message.set_message(
@@ -623,6 +651,8 @@ impl App {
                                 "a"     | "add" => "add <habit-name> [goal[/week] | <limit]   e.g. `add gym 3/week`, `add smoke <5`  (alias: a)",
                                 "describe" | "desc" => "describe <habit-name> <text...>     (alias: desc)",
                                 "d"     | "delete" => "delete <habit-name>     (alias: d)",
+                                "rename" => "rename <habit-name> <new-name>   (its archived history follows)",
+                                "goal" => "goal <habit-name> <goal>   e.g. `goal gym 4/week`, `goal smoke <3`",
                                 "mprev" | "month-prev" => "month-prev     (alias: mprev)",
                                 "mnext" | "month-next" => "month-next     (alias: mnext)",
                                 "archive" => "archive old months to separate files",
@@ -630,7 +660,7 @@ impl App {
                                 "q"     | "quit" => "quit dijo",
                                 "w"     | "write" => "write current state to disk   (alias: w)",
                                 "h"|"?" | "help" => "help [<command>|commands|keys]     (aliases: h, ?)",
-                                "cmds"  | "commands" => "add, describe, delete, month-{prev,next}, archive, dashboard, help, quit",
+                                "cmds"  | "commands" => "add, describe, delete, rename, goal, month-{prev,next}, archive, dashboard, help, quit",
                                 "keys" => "hjkl: move | HJKL: cursor | n/Enter: +1 | p/BS: -1 | v: cycle view (day/week/month/sparkline/year/stats/heatmap) | d: dashboard | i: description popup | []: month | Esc: reset",
                                 "wq" =>   "write current state to disk and quit dijo",
                                 _ => "unknown command or help topic.",
@@ -869,6 +899,38 @@ mod tests {
         assert_eq!(json["class"], "todo");
         assert_eq!(json["habits"][0]["done"], true);
         assert_eq!(json["habits"][1]["remaining"], 8);
+    }
+
+    #[test]
+    fn goal_changes_the_goal_within_the_habit_type() {
+        let (mut app, today) = tracked_app();
+        app.parse_command("goal water 4/week".parse());
+        assert_eq!(app.habits[1].goal(), 4);
+        assert_eq!(app.habits[1].period(), GoalPeriod::Weekly);
+
+        app.parse_command("goal run 7.5".parse());
+        assert_eq!(app.habits[2].goal(), 75);
+
+        app.parse_command("goal run 7.25".parse());
+        assert!(matches!(app.message.kind(), MessageKind::Error));
+        assert_eq!(app.habits[2].goal(), 75, "two decimals do not fit one");
+
+        app.clear_message();
+        app.parse_command("goal read 3".parse());
+        assert!(matches!(app.message.kind(), MessageKind::Error));
+
+        app.clear_message();
+        app.parse_command("goal smoke <1".parse());
+        assert_eq!(app.habits[3].kind(), GoalKind::Limit(1));
+        assert_eq!(app.habits[3].remaining(today), 1, "no entry today");
+    }
+
+    #[test]
+    fn rename_refuses_a_name_in_use() {
+        let (mut app, _) = tracked_app();
+        app.rename("water", "read");
+        assert!(matches!(app.message.kind(), MessageKind::Error));
+        assert_eq!(app.habits[1].name(), "water");
     }
 
     #[test]

@@ -110,6 +110,8 @@ Press `v` to cycle the view for every habit. `Esc` goes back to `DAY` and resets
 | `:add <name> [goal]` | `:a` | add a habit |
 | `:describe <name> <text...>` | `:desc` | set the description of a habit |
 | `:delete <name>` | `:d` | delete a habit |
+| `:rename <name> <new-name>` | | rename a habit and its archived months |
+| `:goal <name> <goal>` | | change the goal, in the same kind of habit (`:goal gym 4/week`) |
 | `:month-prev` | `:mprev` | go to the previous month |
 | `:month-next` | `:mnext` | go to the next month |
 | `:archive` | | move the entries of past months to the archive |

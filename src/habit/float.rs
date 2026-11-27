@@ -143,6 +143,37 @@ impl Habit for Float {
     fn set_description(&mut self, description: String) {
         self.description = description;
     }
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+    fn set_goal(&mut self, goal: &GoalKind, period: GoalPeriod) -> Result<(), String> {
+        // the entries are scaled by the habit's precision, so the new goal is
+        // scaled to it too; a goal with more decimals than that is refused
+        let (value, precision) = match goal {
+            GoalKind::Float(v, p) => (*v, *p),
+            GoalKind::Count(n) => (*n, 0),
+            GoalKind::Bit => (1, 0),
+            GoalKind::Limit(_) => {
+                return Err("a float habit takes a number as its goal".into());
+            }
+        };
+        let Some(shift) = self.precision.checked_sub(precision) else {
+            return Err(format!(
+                "this habit keeps {} decimal(s); the goal has more",
+                self.precision
+            ));
+        };
+        let value = 10u32
+            .checked_pow(u32::from(shift))
+            .and_then(|scale| value.checked_mul(scale))
+            .ok_or("the goal is too large")?;
+        self.goal = FloatData {
+            value,
+            precision: self.precision,
+        };
+        self.period = period;
+        Ok(())
+    }
     fn kind(&self) -> GoalKind {
         GoalKind::Float(self.goal.value, self.goal.precision)
     }

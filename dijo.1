@@ -346,6 +346,26 @@ Example: \fB:delete water\fR
 Aliases: \fBd\fR
 .RE
 .IP \(bu 2
+Rename: give a habit a new name; its archived months are renamed too
+.RS 2
+.IP \(bu 2
+Inputs: name of habit, new name
+.IP \(bu 2
+Usage: \fBrename <habit-name> <new-name>\fR
+.IP \(bu 2
+Example: \fB:rename gym lifting\fR
+.RE
+.IP \(bu 2
+Goal: change the goal of a habit, in the same kind of habit (a count, a float or a limit; a yes/no habit has no goal to change)
+.RS 2
+.IP \(bu 2
+Inputs: name of habit, goal as in \fB:add\fR
+.IP \(bu 2
+Usage: \fBgoal <habit-name> <goal>\fR
+.IP \(bu 2
+Example: \fB:goal gym 4/week\fR, \fB:goal smoke <3\fR
+.RE
+.IP \(bu 2
 Month motions: stats from the past
 .RS 2
 .IP \(bu 2
