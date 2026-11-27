@@ -100,9 +100,14 @@ with `README.md` and `dijo.1`, and publishes a GitHub Release. Before tagging:
 bump `version` in `Cargo.toml` (rebuild to sync `Cargo.lock`), update the `.TH`
 line in `dijo.1`, and **confirm CI is green first**.
 
-After the GitHub release, update the Homebrew tap (`dijo.rb` in
-`1995parham/homebrew-tap`) and the AUR package `dijo-1995parham`. The steps and
-where the AUR key lives are in the vault note `~/org/HowTo/dijo Setup.md`.
+After the GitHub release, the same workflow updates the Homebrew tap (job
+`homebrew`: `scripts/update-formula.py` on `dijo.rb` in `1995parham/homebrew-tap`,
+pushed with the `TAP_DEPLOY_KEY` deploy key) and the AUR package
+`dijo-1995parham` (job `aur`: sets `pkgver` in `packaging/aur/PKGBUILD`, then
+`KSXGitHub/github-actions-deploy-aur` computes the checksum, builds and pushes
+with `AUR_SSH_PRIVATE_KEY`). Change the package itself in
+`packaging/aur/PKGBUILD`, not on the AUR. The keys and the manual fallback are
+in the vault note `~/org/HowTo/dijo Setup.md`.
 
 ## Known gaps / TODO
 
