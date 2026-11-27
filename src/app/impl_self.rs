@@ -11,8 +11,8 @@ use crate::CONFIGURATION;
 use crate::command::{Command, CommandLineError, GoalKind};
 use crate::habit::{Bit, Count, Float, GoalPeriod, HabitWrapper, ViewMode};
 use crate::stats::habit_stats;
-use crate::theme::progress_color;
 use crate::utils::{self, GRID_WIDTH, VIEW_HEIGHT};
+use crate::views::{day_style, progress_ratio};
 
 use crate::app::{App, Cursor, Message, MessageKind, StatusLine};
 
@@ -176,7 +176,6 @@ impl App {
         let today = Local::now().date_naive();
 
         let accent = CONFIGURATION.accent(self.focus);
-        let todo = CONFIGURATION.todo_color();
         let reached_style = Style::from(accent).combine(Effect::Bold);
         let inactive_style = Style::from(CONFIGURATION.inactive_color());
 
@@ -184,11 +183,16 @@ impl App {
         let dates_set: HashSet<NaiveDate> = habit.get_dates().into_iter().collect();
         let archived = &habit.inner_data_ref().archived_reached;
 
+        let weekly = habit.period() == GoalPeriod::Weekly;
+
         // A day counts as reached if it has an entry that meets the goal (i.e.
-        // nothing remaining), or it was reached in a now-archived month.
+        // nothing remaining), or it was reached in a now-archived month. A day
+        // with an entry but no progress is undone, as in the card views.
         let is_reached = |d: NaiveDate| -> bool {
             (dates_set.contains(&d) && habit.remaining(d) == 0) || archived.contains(&d)
         };
+        let ratio = |d: NaiveDate| progress_ratio(is_reached(d), goal, habit.remaining(d));
+        let undone = |d: NaiveDate| !weekly && dates_set.contains(&d) && ratio(d) == 0.0;
 
         // ---- all-time stats ----
         let reached_dates: Vec<NaiveDate> = dates_set
@@ -198,11 +202,7 @@ impl App {
             .chain(archived.iter().copied())
             .collect();
         let s = habit_stats(&reached_dates, today, habit.period());
-        let unit = if habit.period() == GoalPeriod::Weekly {
-            "weeks"
-        } else {
-            "days"
-        };
+        let unit = if weekly { "weeks" } else { "days" };
 
         let mut out = StyledString::new();
         if !habit.description().is_empty() {
@@ -277,30 +277,23 @@ impl App {
                     out.append_plain(" ");
                     continue;
                 }
-                let style = if is_reached(date) {
-                    Style::from(accent)
-                } else if goal > 0 && habit.remaining(date) < goal {
-                    let ratio = f64::from(goal - habit.remaining(date)) / f64::from(goal);
-                    Style::from(progress_color(accent, todo, ratio))
-                } else {
-                    inactive_style // missed or no data
-                };
-                out.append_styled(cell.as_str(), style);
+                out.append_styled(cell.as_str(), day_style(ratio(date), undone(date), accent));
             }
             out.append_plain("\n");
         }
 
         // ---- legend ----
-        out.append_plain("\n    ");
-        out.append_styled(cell.as_str(), Style::from(accent));
-        out.append_plain(" done   ");
-        out.append_styled(
-            cell.as_str(),
-            Style::from(progress_color(accent, todo, 0.5)),
-        );
-        out.append_plain(" partial   ");
-        out.append_styled(cell.as_str(), inactive_style);
-        out.append_plain(" missed");
+        out.append_plain("\n   ");
+        for (style, name) in [
+            (day_style(1.0, false, accent), "done"),
+            (day_style(0.5, false, accent), "partial"),
+            (day_style(0.0, true, accent), "undone"),
+            (day_style(0.0, false, accent), "no entry"),
+        ] {
+            out.append_plain(" ");
+            out.append_styled(cell.as_str(), style);
+            out.append_plain(format!(" {name}  "));
+        }
 
         Some((habit.name().to_owned(), out))
     }
@@ -625,6 +618,7 @@ mod tests {
         // header, stats and legend are all present in the rendered body
         assert!(body.source().contains("current streak"));
         assert!(body.source().contains("completion rate"));
+        assert!(body.source().contains("undone"));
     }
 
     #[test]

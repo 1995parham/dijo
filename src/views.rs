@@ -36,6 +36,33 @@ fn draw_bar(printer: &Printer, at: (usize, usize), width: usize, filled: usize, 
     });
 }
 
+/// How far a day (or its week, for a weekly goal) is towards the goal, from 0
+/// to 1. A reached day is 1; a habit without a goal makes no progress.
+pub fn progress_ratio(reached: bool, goal: u32, remaining: u32) -> f64 {
+    if reached {
+        1.0
+    } else if goal == 0 {
+        0.0
+    } else {
+        f64::from(goal.saturating_sub(remaining)) / f64::from(goal)
+    }
+}
+
+/// The style of one day in the calendars and heatmaps of a card and of the
+/// dashboard: the accent when reached, a shade of it for partial progress, the
+/// undone color for an entry without progress, and dim for no entry.
+pub fn day_style(ratio: f64, undone: bool, accent: Color) -> Style {
+    if ratio >= 1.0 {
+        Style::from(accent).combine(Effect::Bold)
+    } else if ratio > 0.0 {
+        Style::from(progress_color(accent, CONFIGURATION.todo_color(), ratio))
+    } else if undone {
+        Style::from(CONFIGURATION.undone_color())
+    } else {
+        Style::from(CONFIGURATION.inactive_color())
+    }
+}
+
 fn ramp(ratio: f64) -> &'static str {
     let idx = (ratio.clamp(0.0, 1.0) * (RAMP.len() - 1) as f64).round() as usize;
     RAMP[idx.min(RAMP.len() - 1)]
@@ -54,7 +81,6 @@ where
         let year = cursor.year();
         let month = cursor.month();
 
-        let todo = CONFIGURATION.todo_color();
         let dim = Style::from(CONFIGURATION.inactive_color());
         let reached_style = Style::from(accent).combine(Effect::Bold);
         let weekly = self.period() == GoalPeriod::Weekly;
@@ -65,32 +91,15 @@ where
 
         // How far `date` (or its week, for a weekly goal) is towards the goal.
         let ratio = |date: NaiveDate| -> f64 {
-            let goal = self.goal();
-            if reached_or_archived(date) {
-                1.0
-            } else if goal == 0 {
-                0.0
-            } else {
-                f64::from(goal.saturating_sub(self.remaining(date))) / f64::from(goal)
-            }
+            progress_ratio(reached_or_archived(date), self.goal(), self.remaining(date))
         };
         // A day with an entry but no progress (a "no", a count of zero) is
         // undone; it stands apart from a day that has no entry at all.
         let undone = |date: NaiveDate| -> bool {
             !weekly && self.get_by_date(date).is_some() && ratio(date) == 0.0
         };
-        let progress_style = |date: NaiveDate| -> Style {
-            let r = ratio(date);
-            if r >= 1.0 {
-                reached_style
-            } else if r > 0.0 {
-                Style::from(progress_color(accent, todo, r))
-            } else if undone(date) {
-                Style::from(CONFIGURATION.undone_color())
-            } else {
-                dim
-            }
-        };
+        let progress_style =
+            |date: NaiveDate| -> Style { day_style(ratio(date), undone(date), accent) };
 
         // Reached days out of the days up to today, for a month or a year.
         let reached_share = |days: &mut dyn Iterator<Item = NaiveDate>| -> Option<f64> {
@@ -136,9 +145,6 @@ where
                     None if d <= today => (format!("{:^3}", CONFIGURATION.look.missing_chr), dim),
                     None => (format!("{:^3}", CONFIGURATION.look.future_chr), dim),
                 };
-                if self.get_by_date(d).is_some() && ratio(d) == 0.0 {
-                    style = Style::from(CONFIGURATION.undone_color());
-                }
                 if d == today {
                     style = style.combine(Effect::Underline);
                 }
@@ -365,5 +371,28 @@ where
             }
             _ => EventResult::Ignored,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn progress_ratio_is_the_share_of_the_goal_done() {
+        assert_eq!(progress_ratio(true, 4, 3), 1.0);
+        assert_eq!(progress_ratio(false, 4, 1), 0.75);
+        assert_eq!(progress_ratio(false, 4, 4), 0.0);
+        assert_eq!(progress_ratio(false, 0, 0), 0.0);
+    }
+
+    #[test]
+    fn day_style_keeps_undone_apart_from_no_entry() {
+        let accent = Color::Rgb(200, 100, 0);
+        assert_ne!(day_style(0.0, true, accent), day_style(0.0, false, accent));
+        assert_eq!(
+            day_style(0.0, true, accent),
+            Style::from(CONFIGURATION.undone_color())
+        );
     }
 }
