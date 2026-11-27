@@ -50,6 +50,29 @@ pub fn week_bounds(date: NaiveDate) -> (NaiveDate, NaiveDate) {
     (monday, sunday)
 }
 
+/// The days of the month of `today`, before `today`, that have no entry.
+///
+/// A habit that has no entry before this month and nothing archived was made
+/// this month, so the days before its first entry are not counted as missed.
+pub fn missed_days(dates: &[NaiveDate], existed_before: bool, today: NaiveDate) -> Vec<NaiveDate> {
+    let month_start = today.with_day(1).unwrap_or(today);
+    let existed_before = existed_before || dates.iter().any(|&d| d < month_start);
+    let start = if existed_before {
+        month_start
+    } else {
+        match dates.iter().min() {
+            Some(&first) => first.max(month_start),
+            None => return Vec::new(),
+        }
+    };
+    let recorded: HashSet<NaiveDate> = dates.iter().copied().collect();
+    start
+        .iter_days()
+        .take_while(|&d| d < today)
+        .filter(|d| !recorded.contains(d))
+        .collect()
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Characters {
     #[serde(default = "base_char")]
@@ -436,6 +459,25 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "new");
         assert!(!dir.join("record.json.tmp").exists());
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn missed_days_starts_at_the_first_entry_of_a_new_habit() {
+        // made on the 3rd, filled on the 3rd and the 5th, today is the 7th
+        assert_eq!(missed_days(&[d(3), d(5)], false, d(7)), vec![d(4), d(6)]);
+    }
+
+    #[test]
+    fn missed_days_covers_the_whole_month_for_an_older_habit() {
+        assert_eq!(missed_days(&[d(3)], true, d(5)), vec![d(1), d(2), d(4)]);
+        let december = NaiveDate::from_ymd_opt(2023, 12, 30).unwrap();
+        assert_eq!(missed_days(&[december, d(2)], false, d(3)), vec![d(1)]);
+    }
+
+    #[test]
+    fn missed_days_is_empty_for_a_habit_without_entries() {
+        assert!(missed_days(&[], false, d(10)).is_empty());
+        assert_eq!(missed_days(&[], true, d(3)), vec![d(1), d(2)]);
     }
 
     #[test]

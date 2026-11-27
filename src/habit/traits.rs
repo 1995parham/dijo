@@ -1,4 +1,4 @@
-use chrono::{Datelike, Days, Local, NaiveDate};
+use chrono::{Local, NaiveDate};
 use cursive::direction::Direction;
 use cursive::event::{Event, EventResult};
 use cursive::theme::Color;
@@ -7,6 +7,7 @@ use cursive::{Printer, Vec2};
 
 use crate::command::GoalKind;
 use crate::habit::{Bit, Count, Float, GoalPeriod, InnerData, TrackEvent};
+use crate::utils::missed_days;
 use crate::views::ShadowView;
 
 pub trait Habit {
@@ -108,20 +109,12 @@ macro_rules! auto_habit_impl {
                 Habit::inner_data_mut_ref(self)
             }
             fn missed_dates(&self) -> Vec<NaiveDate> {
-                let today = Local::now().date_naive();
-                let mut index = today.with_day(1).unwrap();
-
-                let mut days: Vec<NaiveDate> = Vec::new();
-
-                while index < today {
-                    if Habit::get_by_date(self, index).is_none() {
-                        days.push(index);
-                    }
-
-                    index = index + Days::new(1);
-                }
-
-                days
+                let inner = Habit::inner_data_ref(self);
+                missed_days(
+                    &Habit::get_dates(self),
+                    !inner.archived_reached.is_empty(),
+                    Local::now().date_naive(),
+                )
             }
         }
     };

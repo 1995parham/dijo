@@ -35,14 +35,11 @@ impl App {
         self.habits.iter().map(|x| x.name().to_owned()).collect()
     }
 
-    pub fn missed_habits_by_name(&self, name: &str) -> Vec<String> {
-        let target_habit = self.habits.iter().find(|x| x.name() == name);
-
-        if let Some(h) = target_habit {
-            h.missed_dates().iter().map(|i| i.to_string()).collect()
-        } else {
-            vec![]
-        }
+    /// The days of this month with no entry for the habit called `name`, or
+    /// `None` when there is no such habit.
+    pub fn missed_habits_by_name(&self, name: &str) -> Option<Vec<String>> {
+        let habit = self.habits.iter().find(|x| x.name() == name)?;
+        Some(habit.missed_dates().iter().map(|i| i.to_string()).collect())
     }
 
     /// Delete the habit called `name`. The focus moves to the first habit only

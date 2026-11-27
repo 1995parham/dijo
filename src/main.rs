@@ -46,7 +46,7 @@ fn main() {
                 .short('m')
                 .action(clap::ArgAction::Set)
                 .value_name("HABIT")
-                .help("missings habits")
+                .help("print the days of this month that have no entry for HABIT")
                 .conflicts_with("list"),
         )
         .get_matches();
@@ -63,9 +63,13 @@ fn main() {
             println!("{h}");
         }
     } else if let Some(habit) = matches.get_one::<String>("missing") {
+        let Some(days) = load_state().missed_habits_by_name(habit) else {
+            eprintln!("dijo: habit `{habit}` does not exist");
+            std::process::exit(1);
+        };
         println!("forgot to fill {habit} on:\n");
-        for h in load_state().missed_habits_by_name(habit) {
-            println!("{h}");
+        for day in days {
+            println!("{day}");
         }
     } else {
         let mut s = Cursive::new();
