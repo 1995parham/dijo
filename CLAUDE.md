@@ -91,6 +91,17 @@ Data lives in the platform data dir: `habit_record.json` plus an `archive/` of
   is 0 or the whole goal, so there are no partial shades, and a day over the
   limit draws as undone. `p` on an empty day records a clean day (0). The card
   badge shows `✓ ≤n`, `over` or a dim `≤n` (`badge` in `impl_view.rs`).
+- **CLI for scripts** (`main.rs`): `dijo track <habit> [amount] [--date]` goes
+  through `App::track` (float amounts are scaled by the habit's precision, a
+  `Bit` is set rather than toggled, `0` is a clean day of a `Limit`) and saves;
+  `dijo status [--json]` prints `App::status_report` (the JSON has waybar's
+  `text` / `tooltip` / `class`). Both race with an open TUI, which saves on quit.
+- **Change a habit in place**: `:rename` (`App::rename`) also renames the habit
+  in every archive file (`utils::rename_in_archives`) and saves at once; `:goal`
+  calls `HabitWrapper::set_goal`, which keeps the habit's type and refuses a
+  goal it cannot take (a `Bit` has none; a `Float` goal is scaled to its
+  precision). `<` / `>` swap the focused habit with a neighbour
+  (`App::move_focused`); the accent follows the position, so it changes color.
 - **Heatmap** (`views.rs`): GitHub-style grid shaded `█`/`▒`/`░` by completion,
   folding in archived reached-days; the rightmost column tracks the viewed week,
   so `[` / `]` scrolls it through history.
