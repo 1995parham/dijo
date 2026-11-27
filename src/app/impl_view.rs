@@ -199,9 +199,6 @@ impl View for App {
             }
 
             Event::Char('v') => {
-                if self.habits.is_empty() {
-                    return EventResult::Consumed(None);
-                }
                 let next = match self.habits[self.focus].inner_data_ref().view_mode() {
                     ViewMode::Day => ViewMode::Week,
                     ViewMode::Week => ViewMode::Month,
@@ -256,12 +253,7 @@ impl View for App {
             /* Every keybind that is not caught by App trickles
              * down to the focused habit.
              * */
-            _ => {
-                if self.habits.is_empty() {
-                    return EventResult::Ignored;
-                }
-                self.habits[self.focus].on_event(e)
-            }
+            _ => self.habits[self.focus].on_event(e),
         }
     }
 }
