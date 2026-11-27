@@ -1,0 +1,75 @@
+name: packages
+
+# Publish a released tag to the Homebrew tap and the AUR. The release workflow
+# calls it after the GitHub Release; run it by hand to retry a channel that
+# failed, or to test both jobs on a tag that is out already (a channel that is
+# current makes no commit).
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Released tag, such as v1.8.0
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Released tag, such as v1.8.0
+        required: true
+        type: string
+
+jobs:
+  homebrew:
+    name: Update the Homebrew tap
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the tap
+        uses: actions/checkout@v7
+        with:
+          repository: 1995parham/homebrew-tap
+          ssh-key: ${{ secrets.TAP_DEPLOY_KEY }}
+
+      - name: Update the formula
+        env:
+          TAG: ${{ inputs.tag }}
+        run: python3 scripts/update-formula.py dijo.rb "$TAG"
+
+      - name: Commit and push
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          git diff --quiet -- dijo.rb && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "feat: update dijo to $TAG"
+          git push origin HEAD:main
+
+  aur:
+    name: Update the AUR package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set the version in the PKGBUILD
+        id: version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version="${TAG#v}"
+          sed -i -e "s/^pkgver=.*/pkgver=$version/" -e "s/^pkgrel=.*/pkgrel=1/" packaging/aur/PKGBUILD
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to the AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v4.2.0
+        with:
+          pkgname: dijo-1995parham
+          pkgbuild: packaging/aur/PKGBUILD
+          updpkgsums: true
+          test: true
+          # the default flags have --nodeps, which leaves out rust
+          test_flags: --clean --cleanbuild --syncdeps --noconfirm
+          commit_username: github-actions[bot]
+          commit_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_message: "upgpkg: dijo-1995parham ${{ steps.version.outputs.version }}-1"
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
